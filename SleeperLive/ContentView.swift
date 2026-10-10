@@ -1,22 +1,266 @@
-//
-//  ContentView.swift
-//  SleeperLive
-//
-//  Created by Zimri Quinonez on 10/8/26.
-//
-
 import SwiftUI
 
-struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+// Data we receive from Sleeper.
+struct SleeperUser: Decodable {
+    let user_id: String
+    let display_name: String?
+}
+
+struct SleeperLeague: Decodable, Identifiable {
+    let league_id: String
+    let name: String
+
+    var id: String {
+        league_id
     }
+}
+
+struct NFLState: Decodable {
+    let league_season: String
+    let week: Int
+}
+
+struct SleeperRoster: Decodable {
+    let roster_id: Int
+    let owner_id: String?
+    let co_owners: [String]?
+}
+
+struct SleeperMatchup: Decodable {
+    let roster_id: Int
+    let matchup_id: Int?
+    let points: Double
+}
+
+struct ContentView: View {
+    @State private var username = ""
+    @State private var lookupMessage = ""
+    @State private var sleeperUser: SleeperUser? = nil
+    @State private var leagues: [SleeperLeague] = []
+    @State private var selectedLeague: SleeperLeague? = nil
+    @State private var myRosterID: Int? = nil
+    @State private var isLoading: Bool = false //starts as false
+    @State private var currentWeek: Int? = nil //starts as nil
+    
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // TODO: Style the welcome screen.
+                Text("SleeperLive")
+                    .font(.largeTitle)
+                    .bold()
+
+                TextField("Sleeper username", text: $username)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                Button("Find my account") {
+                    Task {
+                        await findUser()
+                    }
+                }
+                .disabled(isLoading)
+
+                Text(lookupMessage)
+                if(isLoading){
+                    ProgressView()
+                }
+
+                if let sleeperUser {
+                    // Temporary: helps us check account lookup.
+                    Text("User ID: \(sleeperUser.user_id)")
+                        .font(.caption)
+                }
+
+                ForEach(leagues) { league in
+                    Button(league.name) {
+                        myRosterID = nil
+                        selectedLeague = league
+
+                        Task{
+                            await findMyRoster(league: league)
+                        }
+                    }
+                    .disabled(isLoading)
+                }
+
+                if let selectedLeague {
+                    Text("Selected: \(selectedLeague.name)")
+                        .font(.caption)
+                }
+
+                // TODO: Show real team names and matchup scores.
+                // TODO: Add a button to start the Live Activity.
+            }
+            .padding()
+        }
+    }
+
+    // User lookup and loading leagues tied to it
+    func findUser() async {
+        sleeperUser = nil
+        leagues = []
+        selectedLeague = nil
+        myRosterID = nil
+
+        let cleanUsername = username.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+
+        guard !cleanUsername.isEmpty else {
+            lookupMessage = "Enter your Sleeper username."
+            return
+        }
+        isLoading = true
+        defer {
+            isLoading = false
+        }
+
+        let url = URL(string: "https://api.sleeper.app/v1/user")!
+            .appendingPathComponent(cleanUsername)
+
+        lookupMessage = "Looking up your account..."
+
+        do {
+            let (data, response) = try await URLSession.shared.data(
+                from: url
+            )
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                lookupMessage = "Sleeper couldn't complete the request."
+                return
+            }
+
+            let user = try JSONDecoder().decode(
+                SleeperUser?.self,
+                from: data
+            )
+
+            if let user {
+                sleeperUser = user
+                lookupMessage = "Found: \(user.display_name ?? cleanUsername)"
+                await findLeagues(for: user.user_id)
+            } else {
+                lookupMessage = "Username not found."
+            }
+        } catch {
+            lookupMessage = "Couldn't load your account, please try again."
+        }
+    }
+
+    // Finds the leagues for the current user and current year
+    func findLeagues(for userID: String) async {
+        lookupMessage = "Loading leagues..."
+
+        do {
+            let season = try await fetchLeagueSeason()
+
+            let url = URL(string: "https://api.sleeper.app/v1/user")!
+                .appendingPathComponent(userID)
+                .appendingPathComponent("leagues")
+                .appendingPathComponent("nfl")
+                .appendingPathComponent(season)
+
+            let (data, response) = try await URLSession.shared.data(
+                from: url
+            )
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                lookupMessage = "Couldn't load leagues."
+                return
+            }
+
+            leagues = try JSONDecoder().decode(
+                [SleeperLeague].self,
+                from: data
+            )
+
+            lookupMessage = leagues.isEmpty
+                ? "No leagues found for \(season)."
+                : "Found \(leagues.count) leagues."
+        } catch {
+            lookupMessage = "Couldn't load leagues. Please try again."
+        }
+    }
+
+    // Gets the league season instead of hardcoding
+    func fetchLeagueSeason() async throws -> String {
+        let url = URL(string: "https://api.sleeper.app/v1/state/nfl")!
+
+        let (data, response) = try await URLSession.shared.data(
+            from: url
+        )
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+
+        let state = try JSONDecoder().decode(
+            NFLState.self,
+            from: data
+        )
+
+        currentWeek = state.week
+        return state.league_season
+    }
+
+    // TODO: Add findMyRoster(in:) to match your user ID to a roster.
+    func findMyRoster(league: SleeperLeague) async {
+        guard let sleeperUser = sleeperUser else {
+            lookupMessage = "user is missing"
+            return
+        }
+        isLoading = true
+        defer {
+            isLoading = false
+        }
+        
+        do{
+            let url = URL(string: "https://api.sleeper.app/v1/league")!
+                .appendingPathComponent(league.league_id)
+                .appendingPathComponent("rosters")
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                lookupMessage = "Couldn't load roster, please try again"
+                return
+            }
+            let rosters = try JSONDecoder().decode([SleeperRoster].self, from: data)
+            
+            let myRoster = rosters.first { roster in
+                roster.owner_id == sleeperUser.user_id
+                    || roster.co_owners?.contains(sleeperUser.user_id) == true
+            }
+            myRosterID = myRoster?.roster_id
+            
+            if let myRoster { lookupMessage = "Found your roster \(myRoster.roster_id)"}
+            else { lookupMessage = "No roster belonging to this account was found in selected league."}
+        } catch {
+            lookupMessage = "Couldn't find roster."
+        }
+    }
+    
+    // TODO: Fetch the selected week's matchup and find the opponent.
+    func findMatchup(league: SleeperLeague) async {
+        guard let myRosterID = myRosterID else {
+            lookupMessage = "roster id is missing"
+            return
+        }
+        guard let currentWeek = currentWeek else {
+            lookupMessage = "current week is missing"
+            return
+        }
+        
+        
+    }
+    
+    // TODO: Connect matchup data to a separate Live Activity manager.
 }
 
 #Preview {
