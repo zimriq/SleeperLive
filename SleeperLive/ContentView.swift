@@ -39,8 +39,10 @@ struct ContentView: View {
     @State private var leagues: [SleeperLeague] = []
     @State private var selectedLeague: SleeperLeague? = nil
     @State private var myRosterID: Int? = nil
-    @State private var isLoading: Bool = false //starts as false
-    @State private var currentWeek: Int? = nil //starts as nil
+    @State private var isLoading: Bool = false
+    @State private var currentWeek: Int? = nil
+    @State private var yourScore: Double? = nil
+    @State private var opponentScore: Double? = nil
     
 
     var body: some View {
@@ -71,15 +73,11 @@ struct ContentView: View {
                     ProgressView()
                 }
 
-                if let sleeperUser {
-                    // Temporary: helps us check account lookup.
-                    Text("User ID: \(sleeperUser.user_id)")
-                        .font(.caption)
-                }
-
                 ForEach(leagues) { league in
                     Button(league.name) {
                         myRosterID = nil
+                        opponentScore = nil
+                        yourScore = nil
                         selectedLeague = league
 
                         Task{
@@ -94,7 +92,19 @@ struct ContentView: View {
                         .font(.caption)
                 }
 
-                // TODO: Show real team names and matchup scores.
+                if let yourScore = yourScore, let opponentScore = opponentScore {
+                    HStack(spacing: 40){
+                        VStack(spacing: 12){
+                            Text("You")
+                            Text(yourScore, format: .number.precision(.fractionLength(2)))
+                        }
+                        VStack(spacing: 12) {
+                            Text("Opponent")
+                            Text(opponentScore, format: .number.precision(.fractionLength(2)))
+                        }
+                    }
+                }
+                
                 // TODO: Add a button to start the Live Activity.
             }
             .padding()
@@ -107,6 +117,8 @@ struct ContentView: View {
         leagues = []
         selectedLeague = nil
         myRosterID = nil
+        yourScore = nil
+        opponentScore = nil
 
         let cleanUsername = username.trimmingCharacters(
             in: .whitespacesAndNewlines
@@ -251,7 +263,7 @@ struct ContentView: View {
         }
     }
     
-    // TODO: Fetch the selected week's matchup and find the opponent.
+    // Fetches the selected week's matchup and finds the opponent.
     func findMatchup(league: SleeperLeague) async {
         guard let myRosterID = myRosterID else {
             lookupMessage = "roster id is missing"
@@ -300,7 +312,9 @@ struct ContentView: View {
                 return
             }
             
-            lookupMessage = "Your score: \(myMatchup.points) and opponent score: \(opponentMatchup.points)"
+            yourScore = myMatchup.points
+            opponentScore = opponentMatchup.points
+            lookupMessage = "Matchup loaded."
         } catch {
             lookupMessage = "Couldn't find matchup."
         }
