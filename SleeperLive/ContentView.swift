@@ -64,6 +64,9 @@ struct ContentView: View {
                 .disabled(isLoading)
 
                 Text(lookupMessage)
+                if let currentWeek = currentWeek {
+                    Text("Week \(currentWeek)")
+                }
                 if(isLoading){
                     ProgressView()
                 }
@@ -209,7 +212,7 @@ struct ContentView: View {
         return state.league_season
     }
 
-    // TODO: Add findMyRoster(in:) to match your user ID to a roster.
+    // match your user ID to a roster.
     func findMyRoster(league: SleeperLeague) async {
         guard let sleeperUser = sleeperUser else {
             lookupMessage = "user is missing"
@@ -239,7 +242,9 @@ struct ContentView: View {
             }
             myRosterID = myRoster?.roster_id
             
-            if let myRoster { lookupMessage = "Found your roster \(myRoster.roster_id)"}
+            if let myRoster { lookupMessage = "Found your roster \(myRoster.roster_id)"
+                await findMatchup(league: league)
+            }
             else { lookupMessage = "No roster belonging to this account was found in selected league."}
         } catch {
             lookupMessage = "Couldn't find roster."
@@ -257,7 +262,49 @@ struct ContentView: View {
             return
         }
         
-        
+        do{
+            let url = URL(string: "https://api.sleeper.app/v1/league")!
+                .appendingPathComponent(league.league_id)
+                .appendingPathComponent("matchups")
+                .appendingPathComponent(String(currentWeek))
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                lookupMessage = "Couldn't load matchup, please try again"
+                return
+            }
+            
+            let matchups = try JSONDecoder().decode([SleeperMatchup].self, from: data)
+            let myMatchup = matchups.first {
+                matchup in matchup.roster_id == myRosterID
+            }
+            
+            guard let myMatchup = myMatchup else {
+                lookupMessage = "Your team has no matchup for this week"
+                return
+            }
+            guard let matchupID = myMatchup.matchup_id else {
+                lookupMessage = "No opponent is assigned for this week"
+                return
+            }
+            
+            //finding opponent
+            let opponentMatchup = matchups.first {
+                matchup in matchup.matchup_id == matchupID &&
+                matchup.roster_id != myRosterID
+            }
+            
+            guard let opponentMatchup = opponentMatchup else {
+                lookupMessage = "No opponent is found."
+                return
+            }
+            
+            lookupMessage = "Your score: \(myMatchup.points) and opponent score: \(opponentMatchup.points)"
+        } catch {
+            lookupMessage = "Couldn't find matchup."
+        }
+                
     }
     
     // TODO: Connect matchup data to a separate Live Activity manager.
