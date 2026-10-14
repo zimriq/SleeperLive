@@ -32,6 +32,16 @@ struct SleeperMatchup: Decodable {
     let points: Double
 }
 
+struct SleeperLeagueUser: Decodable {
+    let user_id: String
+    let display_name: String?
+    let metadata: SleeperLeagueUserMetadata?
+}
+
+struct SleeperLeagueUserMetadata: Decodable {
+    let team_name: String?
+}
+
 struct ContentView: View {
     @State private var username = ""
     @State private var lookupMessage = ""
@@ -43,6 +53,10 @@ struct ContentView: View {
     @State private var currentWeek: Int? = nil
     @State private var yourScore: Double? = nil
     @State private var opponentScore: Double? = nil
+    @State private var leagueRosters: [SleeperRoster] = []
+    @State private var opponentRosterID: Int? = nil
+    @State private var yourTeamName: String = "You"
+    @State private var opponentTeamName: String = "Opponent"
     
 
     var body: some View {
@@ -78,6 +92,8 @@ struct ContentView: View {
                         myRosterID = nil
                         opponentScore = nil
                         yourScore = nil
+                        yourTeamName = "You"
+                        opponentTeamName = "Opponent"
                         selectedLeague = league
 
                         Task{
@@ -95,11 +111,11 @@ struct ContentView: View {
                 if let yourScore = yourScore, let opponentScore = opponentScore {
                     HStack(spacing: 40){
                         VStack(spacing: 12){
-                            Text("You")
+                            Text(yourTeamName)
                             Text(yourScore, format: .number.precision(.fractionLength(2)))
                         }
                         VStack(spacing: 12) {
-                            Text("Opponent")
+                            Text(opponentTeamName)
                             Text(opponentScore, format: .number.precision(.fractionLength(2)))
                         }
                     }
@@ -117,8 +133,11 @@ struct ContentView: View {
         leagues = []
         selectedLeague = nil
         myRosterID = nil
+        opponentRosterID = nil
         yourScore = nil
         opponentScore = nil
+        yourTeamName = "You"
+        opponentTeamName = "Opponent"
 
         let cleanUsername = username.trimmingCharacters(
             in: .whitespacesAndNewlines
@@ -247,6 +266,7 @@ struct ContentView: View {
                 return
             }
             let rosters = try JSONDecoder().decode([SleeperRoster].self, from: data)
+            leagueRosters = rosters
             
             let myRoster = rosters.first { roster in
                 roster.owner_id == sleeperUser.user_id
@@ -311,14 +331,55 @@ struct ContentView: View {
                 lookupMessage = "No opponent is found."
                 return
             }
+            opponentRosterID = opponentMatchup.roster_id
             
             yourScore = myMatchup.points
             opponentScore = opponentMatchup.points
             lookupMessage = "Matchup loaded."
+            
+            await findTeamNames(league: league)
         } catch {
             lookupMessage = "Couldn't find matchup."
         }
                 
+    }
+    
+    func findTeamNames(league: SleeperLeague) async {
+        guard let myRosterID = myRosterID, let opponentRosterID = opponentRosterID else {
+            lookupMessage = "Roster IDs not found."
+            return
+        }
+        
+        let url = URL(string: "https://api.sleeper.app/v1/league")!
+            .appendingPathComponent(league.league_id)
+            .appendingPathComponent("users")
+        
+        do{
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                lookupMessage = "Couldn't load team name."
+                return
+            }
+            
+            let leagueUsers = try JSONDecoder().decode([SleeperLeagueUser].self, from: data)
+            let yourRoster = leagueRosters.first{roster in roster.roster_id == myRosterID }
+            let opponentRoster = leagueRosters.first{roster in roster.roster_id == opponentRosterID }
+            
+            guard let yourRoster = yourRoster, let opponentRoster = opponentRoster else {
+                lookupMessage = "Rosters not found."
+                return
+            }
+            
+            let yourLeagueUser = leagueUsers.first{ user in user.user_id == yourRoster.owner_id }
+            let opponentLeagueUser = leagueUsers.first{ user in user.user_id == opponentRoster.owner_id }
+            
+            yourTeamName = yourLeagueUser?.metadata?.team_name ?? yourLeagueUser?.display_name ?? "You"
+            opponentTeamName = opponentLeagueUser?.metadata?.team_name ?? opponentLeagueUser?.display_name ?? "Opponent"
+        } catch {
+            lookupMessage = "Couldn't load team names. Please try again"
+        }
     }
     
     // TODO: Connect matchup data to a separate Live Activity manager.
