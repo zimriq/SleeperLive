@@ -83,29 +83,35 @@ struct ContentView: View {
         }
     }
     
+    var leagueSelectionView: some View {
+        VStack(spacing: 24){
+            Text("Choose a league")
+            ForEach(leagues) { league in
+                Button(league.name) {
+                    myRosterID = nil
+                    opponentScore = nil
+                    yourScore = nil
+                    yourTeamName = "You"
+                    opponentTeamName = "Opponent"
+                    selectedLeague = league
+
+                    Task{
+                        await findMyRoster(league: league)
+                    }
+                }
+                .disabled(isLoading)
+            }
+        }
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 welcomeView
+                leagueSelectionView
                 
                 if let currentWeek = currentWeek {
                     Text("Week \(currentWeek)")
-                }
-                
-                ForEach(leagues) { league in
-                    Button(league.name) {
-                        myRosterID = nil
-                        opponentScore = nil
-                        yourScore = nil
-                        yourTeamName = "You"
-                        opponentTeamName = "Opponent"
-                        selectedLeague = league
-
-                        Task{
-                            await findMyRoster(league: league)
-                        }
-                    }
-                    .disabled(isLoading)
                 }
 
                 if let selectedLeague {
