@@ -104,35 +104,41 @@ struct ContentView: View {
         }
     }
     
+    var matchupView: some View {
+        VStack(spacing: 24) {
+            if let selectedLeague {
+                Text("Selected: \(selectedLeague.name)")
+                    .font(.caption)
+            }
+            
+            if let currentWeek = currentWeek {
+                Text("Week \(currentWeek)")
+            }
+            
+            if let yourScore = yourScore, let opponentScore = opponentScore {
+                HStack(spacing: 40){
+                    VStack(spacing: 12){
+                        Text(yourTeamName)
+                        Text(yourScore, format: .number.precision(.fractionLength(2)))
+                    }
+                    VStack(spacing: 12) {
+                        Text(opponentTeamName)
+                        Text(opponentScore, format: .number.precision(.fractionLength(2)))
+                    }
+                }
+            }
+            
+            // TODO: Add a button to start the Live Activity.
+
+        }
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 welcomeView
                 leagueSelectionView
-                
-                if let currentWeek = currentWeek {
-                    Text("Week \(currentWeek)")
-                }
-
-                if let selectedLeague {
-                    Text("Selected: \(selectedLeague.name)")
-                        .font(.caption)
-                }
-
-                if let yourScore = yourScore, let opponentScore = opponentScore {
-                    HStack(spacing: 40){
-                        VStack(spacing: 12){
-                            Text(yourTeamName)
-                            Text(yourScore, format: .number.precision(.fractionLength(2)))
-                        }
-                        VStack(spacing: 12) {
-                            Text(opponentTeamName)
-                            Text(opponentScore, format: .number.precision(.fractionLength(2)))
-                        }
-                    }
-                }
-                
-                // TODO: Add a button to start the Live Activity.
+                matchupView
             }
             .padding()
         }
