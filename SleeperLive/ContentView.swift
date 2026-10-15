@@ -101,8 +101,9 @@ struct ContentView: View {
                         await findMyRoster(league: league)
                     }
                 }
-                .disabled(isLoading)
+                .disabled(isLoading && selectedLeague?.league_id == league.league_id)
             }
+            .allowsHitTesting(!isLoading)
         }
     }
     
@@ -371,6 +372,7 @@ struct ContentView: View {
             lookupMessage = "Matchup loaded."
             
             await findTeamNames(league: league)
+            showMatchup = true
         } catch {
             lookupMessage = "Couldn't find matchup."
         }
