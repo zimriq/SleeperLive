@@ -58,35 +58,40 @@ struct ContentView: View {
     @State private var yourTeamName: String = "You"
     @State private var opponentTeamName: String = "Opponent"
     
-
+    var welcomeView: some View{
+        VStack(spacing: 24){
+            Text("SleeperLive")
+                .font(.largeTitle)
+                .bold()
+            
+            TextField("Sleeper username", text: $username)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            
+            Button("Find my account") {
+                Task {
+                    await findUser()
+                }
+            }
+            .disabled(isLoading)
+            
+            Text(lookupMessage)
+            if(isLoading){
+                ProgressView()
+            }
+        }
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // TODO: Style the welcome screen.
-                Text("SleeperLive")
-                    .font(.largeTitle)
-                    .bold()
-
-                TextField("Sleeper username", text: $username)
-                    .textFieldStyle(.roundedBorder)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-
-                Button("Find my account") {
-                    Task {
-                        await findUser()
-                    }
-                }
-                .disabled(isLoading)
-
-                Text(lookupMessage)
+                welcomeView
+                
                 if let currentWeek = currentWeek {
                     Text("Week \(currentWeek)")
                 }
-                if(isLoading){
-                    ProgressView()
-                }
-
+                
                 ForEach(leagues) { league in
                     Button(league.name) {
                         myRosterID = nil
