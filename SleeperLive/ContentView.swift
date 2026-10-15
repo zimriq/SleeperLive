@@ -61,22 +61,23 @@ struct ContentView: View {
     @State private var showMatchup: Bool = false
     
     var welcomeView: some View{
-        VStack(spacing: 24){
-            Text("SleeperLive")
+        VStack(alignment: .leading, spacing: 24){
+            Text("Sleeper\nLive")
                 .font(.largeTitle)
                 .bold()
+            Text("Your Sleeper matchup, on the Lock Screen")
+                .foregroundStyle(.secondary)
             
+            Text("Sleeper Username")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             TextField("Sleeper username", text: $username)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-            
-            Button("Find my account") {
-                Task {
-                    await findUser()
-                }
-            }
-            .disabled(isLoading)
+            Text("No password needed")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             
             Text(lookupMessage)
             if(isLoading){
@@ -136,10 +137,28 @@ struct ContentView: View {
         }
     }
     
+    var findAccountButton: some View {
+        Button {
+            Task {
+                await findUser()
+            }
+        } label: {
+            Text("Find my account")
+                .frame(maxWidth: .infinity)
+        }
+        .disabled(isLoading)
+        .buttonStyle(.borderedProminent)
+        .tint(.green)
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 welcomeView
+                    .padding()
+            }
+            .safeAreaInset(edge: .bottom){
+                findAccountButton
                     .padding()
             }
             .navigationDestination(isPresented: $showLeagueSelection) {
