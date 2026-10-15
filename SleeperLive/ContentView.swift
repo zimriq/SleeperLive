@@ -63,25 +63,37 @@ struct ContentView: View {
     var welcomeView: some View{
         VStack(alignment: .leading, spacing: 24){
             Text("Sleeper\nLive")
-                .font(.largeTitle)
-                .bold()
+                .font(.system(size: 60, weight: .heavy))
+            
             Text("Your Sleeper matchup, on the Lock Screen")
+                .font(.body)
                 .foregroundStyle(.secondary)
             
-            Text("Sleeper Username")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            TextField("Sleeper username", text: $username)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            Text("No password needed")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            
-            Text(lookupMessage)
-            if(isLoading){
-                ProgressView()
+            VStack(alignment: .leading, spacing: 8){
+                Text("Sleeper Username")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                TextField("Sleeper username", text: $username)
+                    .textFieldStyle(.plain)
+                        .padding(16)
+                        .background(
+                            Color(uiColor: .secondarySystemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Text("No password needed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                Text(lookupMessage)
+                if(isLoading){
+                    ProgressView()
+                }
             }
         }
     }
@@ -145,22 +157,27 @@ struct ContentView: View {
         } label: {
             Text("Find my account")
                 .frame(maxWidth: .infinity)
+                .font(.headline)
+                .padding(.vertical, 12)
         }
         .disabled(isLoading)
         .buttonStyle(.borderedProminent)
-        .tint(.green)
+        .tint(Color(red: 0.05, green: 0.43, blue: 0.25))
+        .buttonBorderShape(.roundedRectangle(radius: 16))
     }
     
     var body: some View {
         NavigationStack {
             ScrollView {
                 welcomeView
-                    .padding()
+                    .padding(24)
             }
             .safeAreaInset(edge: .bottom){
                 findAccountButton
-                    .padding()
+                    .padding(24)
             }
+            .background(Color(uiColor:
+                    .systemGroupedBackground))
             .navigationDestination(isPresented: $showLeagueSelection) {
                 ScrollView {
                     leagueSelectionView
