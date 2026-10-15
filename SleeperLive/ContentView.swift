@@ -57,6 +57,8 @@ struct ContentView: View {
     @State private var opponentRosterID: Int? = nil
     @State private var yourTeamName: String = "You"
     @State private var opponentTeamName: String = "Opponent"
+    @State private var showLeagueSelection: Bool = false
+    @State private var showMatchup: Bool = false
     
     var welcomeView: some View{
         VStack(spacing: 24){
@@ -134,13 +136,23 @@ struct ContentView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
+        NavigationStack {
+            ScrollView {
                 welcomeView
-                leagueSelectionView
-                matchupView
+                    .padding()
             }
-            .padding()
+            .navigationDestination(isPresented: $showLeagueSelection) {
+                ScrollView {
+                    leagueSelectionView
+                        .padding()
+                }
+                .navigationDestination(isPresented: $showMatchup) {
+                    ScrollView {
+                        matchupView
+                            .padding()
+                    }
+                }
+            }
         }
     }
 
@@ -233,6 +245,10 @@ struct ContentView: View {
             lookupMessage = leagues.isEmpty
                 ? "No leagues found for \(season)."
                 : "Found \(leagues.count) leagues."
+            
+            if !leagues.isEmpty {
+                showLeagueSelection = true
+            }
         } catch {
             lookupMessage = "Couldn't load leagues. Please try again."
         }
