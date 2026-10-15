@@ -60,137 +60,226 @@ struct ContentView: View {
     @State private var showLeagueSelection: Bool = false
     @State private var showMatchup: Bool = false
     
-    var welcomeView: some View{
-        VStack(alignment: .leading, spacing: 24){
-            Text("Sleeper\nLive")
-                .font(.system(size: 60, weight: .heavy))
-            
-            Text("Your Sleeper matchup, on the Lock Screen")
-                .font(.body)
-                .foregroundStyle(.secondary)
-            
-            VStack(alignment: .leading, spacing: 8){
-                Text("Sleeper Username")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                TextField("Sleeper username", text: $username)
+    // Shared visual styling keeps all three screens consistent.
+    private let accentColor = Color(red: 0.05, green: 0.43, blue: 0.25)
+    @ScaledMetric(relativeTo: .largeTitle) private var titleSize = 60
+
+    var welcomeView: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Sleeper\nLive")
+                    .font(.system(size: titleSize, weight: .heavy))
+                    .tracking(-2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Your Sleeper matchup, on the Lock Screen.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Sleeper username")
+                    .font(.subheadline.weight(.semibold))
+                TextField("e.g. rigo_fc", text: $username)
                     .textFieldStyle(.plain)
-                        .padding(16)
-                        .background(
-                            Color(uiColor: .secondarySystemGroupedBackground),
-                            in: RoundedRectangle(cornerRadius: 16)
-                        )
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                        }
+                    .padding(18)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 16))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                    }
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                Text("No password needed")
-                    .font(.caption)
+                    .accessibilityLabel("Sleeper username")
+                Text("No password needed.")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                
-                Text(lookupMessage)
-                if(isLoading){
-                    ProgressView()
+            }
+            lookupFeedback
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var leagueSelectionView: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Choose a league")
+                    .font(.largeTitle.bold())
+                if let sleeperUser {
+                    Text("Account: \(sleeperUser.display_name ?? username)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
-        }
-    }
-    
-    var leagueSelectionView: some View {
-        VStack(spacing: 24){
-            Text("Choose a league")
-            ForEach(leagues) { league in
-                Button(league.name) {
-                    myRosterID = nil
-                    opponentScore = nil
-                    yourScore = nil
-                    yourTeamName = "You"
-                    opponentTeamName = "Opponent"
-                    selectedLeague = league
-
-                    Task{
-                        await findMyRoster(league: league)
+            VStack(spacing: 12) {
+                ForEach(leagues) { league in
+                    Button {
+                        // Also blocks keyboard/VoiceOver activation during a request.
+                        guard !isLoading else { return }
+                        myRosterID = nil
+                        opponentScore = nil
+                        yourScore = nil
+                        yourTeamName = "You"
+                        opponentTeamName = "Opponent"
+                        selectedLeague = league
+                        Task {
+                            await findMyRoster(league: league)
+                        }
+                    } label: {
+                        HStack(spacing: 16) {
+                            Text(league.name)
+                                .font(.body.weight(.semibold))
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 8)
+                            if isLoading && selectedLeague?.league_id == league.league_id {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .foregroundStyle(isLoading && selectedLeague?.league_id == league.league_id
+                                         ? Color.secondary : Color.primary)
+                        .padding(20)
+                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground),
+                                    in: RoundedRectangle(cornerRadius: 18))
+                        .contentShape(RoundedRectangle(cornerRadius: 18))
                     }
+                    .buttonStyle(.plain)
+                    .disabled(isLoading && selectedLeague?.league_id == league.league_id)
                 }
-                .disabled(isLoading && selectedLeague?.league_id == league.league_id)
             }
             .allowsHitTesting(!isLoading)
+            lookupFeedback
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     var matchupView: some View {
-        VStack(spacing: 24) {
-            if let selectedLeague {
-                Text("Selected: \(selectedLeague.name)")
-                    .font(.caption)
-            }
-            
-            if let currentWeek = currentWeek {
-                Text("Week \(currentWeek)")
-            }
-            
-            if let yourScore = yourScore, let opponentScore = opponentScore {
-                HStack(spacing: 40){
-                    VStack(spacing: 12){
-                        Text(yourTeamName)
-                        Text(yourScore, format: .number.precision(.fractionLength(2)))
-                    }
-                    VStack(spacing: 12) {
-                        Text(opponentTeamName)
-                        Text(opponentScore, format: .number.precision(.fractionLength(2)))
-                    }
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let selectedLeague {
+                    Text(selectedLeague.name)
+                        .font(.title.bold())
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let currentWeek {
+                    Text("Week \(currentWeek)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
-            
-            // TODO: Add a button to start the Live Activity.
+            if let yourScore, let opponentScore {
+                VStack(spacing: 20) {
+                    teamScoreRow(name: yourTeamName, role: "Your team", score: yourScore)
+                    Divider()
+                    teamScoreRow(name: opponentTeamName, role: "Opponent", score: opponentScore)
+                }
+                .padding(24)
+                .background(Color(uiColor: .secondarySystemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 24))
+            }
+            lookupFeedback
+            // TODO: Add real projections and Live Activity controls when connected.
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
+    private func teamScoreRow(name: String, role: String, score: Double) -> some View {
+        // Large accessibility text can place the score below the name instead.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 16) {
+                teamNameLabel(name: name, role: role)
+                Spacer(minLength: 8)
+                scoreLabel(score)
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                teamNameLabel(name: name, role: role)
+                scoreLabel(score)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func teamNameLabel(name: String, role: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(name)
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(role)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
-    
+
+    private func scoreLabel(_ score: Double) -> some View {
+        Text(score, format: .number.precision(.fractionLength(2)))
+            .font(.largeTitle.weight(.bold))
+            .monospacedDigit()
+            .fixedSize()
+    }
+
+    private var lookupFeedback: some View {
+        HStack(alignment: .top, spacing: 10) {
+            if isLoading { ProgressView() }
+            if !lookupMessage.isEmpty {
+                Text(lookupMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     var findAccountButton: some View {
         Button {
-            Task {
-                await findUser()
-            }
+            guard !isLoading else { return }
+            Task { await findUser() }
         } label: {
             Text("Find my account")
-                .frame(maxWidth: .infinity)
                 .font(.headline)
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
         }
         .disabled(isLoading)
         .buttonStyle(.borderedProminent)
-        .tint(Color(red: 0.05, green: 0.43, blue: 0.25))
+        .tint(accentColor)
         .buttonBorderShape(.roundedRectangle(radius: 16))
     }
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                welcomeView
-                    .padding(24)
+                welcomeView.padding(24)
             }
-            .safeAreaInset(edge: .bottom){
+            .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom) {
                 findAccountButton
                     .padding(24)
+                    .background(Color(uiColor: .systemGroupedBackground))
             }
-            .background(Color(uiColor:
-                    .systemGroupedBackground))
+            .background(Color(uiColor: .systemGroupedBackground))
             .navigationDestination(isPresented: $showLeagueSelection) {
                 ScrollView {
-                    leagueSelectionView
-                        .padding()
+                    leagueSelectionView.padding(24)
                 }
+                .background(Color(uiColor: .systemGroupedBackground))
+                .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(isPresented: $showMatchup) {
                     ScrollView {
-                        matchupView
-                            .padding()
+                        matchupView.padding(24)
                     }
+                    .background(Color(uiColor: .systemGroupedBackground))
+                    .navigationBarTitleDisplayMode(.inline)
                 }
             }
         }
+        .tint(accentColor)
     }
 
     // User lookup and loading leagues tied to it
