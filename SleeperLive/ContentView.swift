@@ -1,4 +1,5 @@
 import SwiftUI
+import ActivityKit
 
 // Data we receive from Sleeper.
 struct SleeperUser: Decodable {
@@ -29,7 +30,8 @@ struct SleeperRoster: Decodable {
 struct SleeperMatchup: Decodable {
     let roster_id: Int
     let matchup_id: Int?
-    let points: Double
+    let points: Double?
+    let custom_points: Double?
 }
 
 struct SleeperLeagueUser: Decodable {
@@ -43,6 +45,10 @@ struct SleeperLeagueUserMetadata: Decodable {
 }
 
 struct ContentView: View {
+    @StateObject private var liveActivity = LiveActivityManager()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var scoreUpdatedAt: Int?
+
     @State private var username = ""
     @State private var lookupMessage = ""
     @State private var sleeperUser: SleeperUser? = nil
@@ -117,6 +123,8 @@ struct ContentView: View {
                     Button {
                         // Also blocks keyboard/VoiceOver activation during a request.
                         guard !isLoading else { return }
+                        scoreUpdatedAt = nil
+                        opponentRosterID = nil
                         myRosterID = nil
                         opponentScore = nil
                         yourScore = nil
@@ -184,9 +192,81 @@ struct ContentView: View {
                             in: RoundedRectangle(cornerRadius: 24))
             }
             lookupFeedback
-            // TODO: Add real projections and Live Activity controls when connected.
+            liveActivityControls
+            Text("Projections and automatic background updates will be available after the server is connected.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var activityState: MatchupActivityAttributes.ContentState? {
+        guard let yourScore, let opponentScore, let scoreUpdatedAt else { return nil }
+        return .init(yourScore: yourScore, opponentScore: opponentScore,
+                     yourProjected: nil, opponentProjected: nil,
+                     yourProjectionKind: "unavailable", opponentProjectionKind: "unavailable",
+                     updatedAt: scoreUpdatedAt)
+    }
+
+    private var liveActivityControls: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let state = activityState {
+                TimelineView(.periodic(from: .now, by: 30)) { timeline in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Updated \(state.updatedDate, style: .time)")
+                        if timeline.date >= state.staleDate {
+                            Text("Scores may be outdated. Refresh to get the latest.")
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Button {
+                guard !isLoading, let selectedLeague else { return }
+                isLoading = true
+                Task {
+                    defer { isLoading = false }
+                    await findMatchup(league: selectedLeague)
+                }
+            } label: {
+                Label("Refresh scores", systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isLoading || liveActivity.isBusy)
+
+            if liveActivity.hasActivity {
+                if let activity = liveActivity.activity {
+                    Text("On your Lock Screen: \(activity.attributes.leagueName) · Week \(activity.attributes.week)")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Button("Stop Live Activity", role: .destructive) {
+                    Task { await liveActivity.stop() }
+                }
+                .buttonStyle(.bordered)
+                .disabled(liveActivity.isBusy)
+            } else {
+                Button {
+                    guard let league = selectedLeague, let week = currentWeek,
+                          let rosterId = myRosterID, let state = activityState else { return }
+                    liveActivity.start(attributes: .init(
+                        leagueName: league.name, yourName: yourTeamName,
+                        opponentName: opponentTeamName, week: week,
+                        leagueId: league.league_id, rosterId: rosterId, previewOnly: true
+                    ), state: state)
+                } label: {
+                    Label("Preview Live Activity", systemImage: "lock.rectangle")
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle(radius: 16))
+                .disabled(isLoading || activityState == nil || liveActivity.isBusy)
+            }
+            if !liveActivity.message.isEmpty {
+                Text(liveActivity.message).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func teamScoreRow(name: String, role: String, score: Double) -> some View {
@@ -280,10 +360,15 @@ struct ContentView: View {
             }
         }
         .tint(accentColor)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { liveActivity.restore() }
+        }
     }
 
     // User lookup and loading leagues tied to it
     func findUser() async {
+        scoreUpdatedAt = nil
+        currentWeek = nil
         sleeperUser = nil
         leagues = []
         selectedLeague = nil
@@ -492,11 +577,22 @@ struct ContentView: View {
             }
             opponentRosterID = opponentMatchup.roster_id
             
-            yourScore = myMatchup.points
-            opponentScore = opponentMatchup.points
+            guard let ownPoints = myMatchup.custom_points ?? myMatchup.points,
+                  let otherPoints = opponentMatchup.custom_points ?? opponentMatchup.points,
+                  ownPoints.isFinite, otherPoints.isFinite else {
+                lookupMessage = "Scores are unavailable. Please try again."
+                return
+            }
+            yourScore = ownPoints
+            opponentScore = otherPoints
+            scoreUpdatedAt = Int(Date().timeIntervalSince1970)
             lookupMessage = "Matchup loaded."
             
             await findTeamNames(league: league)
+            if let state = activityState {
+                await liveActivity.refresh(leagueId: league.league_id, rosterId: myRosterID,
+                                           week: currentWeek, state: state)
+            }
             showMatchup = true
         } catch {
             lookupMessage = "Couldn't find matchup."
@@ -542,7 +638,7 @@ struct ContentView: View {
         }
     }
     
-    // TODO: Connect matchup data to a separate Live Activity manager.
+    // Server registration and remote push updates are the next milestone.
 }
 
 #Preview {
