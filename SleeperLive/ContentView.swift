@@ -48,6 +48,9 @@ struct ContentView: View {
     @StateObject private var liveActivity = LiveActivityManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var scoreUpdatedAt: Int?
+    @State private var showServerSetup = false
+    @State private var serverSnapshot: ServerSnapshot?
+    @State private var selectionVersion = UUID()
 
     @State private var username = ""
     @State private var lookupMessage = ""
@@ -103,6 +106,17 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
             lookupFeedback
+            if let activity = liveActivity.activity {
+                Text("Active: \(activity.attributes.leagueName) · Week \(activity.attributes.week)")
+                    .font(.footnote)
+                Button("Stop Live Activity", role: .destructive) { Task { await liveActivity.stop() } }
+                    .disabled(liveActivity.isBusy)
+            }
+            Button(liveActivity.isConnected ? "Server connected · Settings" : "Set up background updates") {
+                showServerSetup = true
+            }
+            .font(.footnote)
+            .disabled(isLoading || liveActivity.isBusy)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -122,7 +136,9 @@ struct ContentView: View {
                 ForEach(leagues) { league in
                     Button {
                         // Also blocks keyboard/VoiceOver activation during a request.
-                        guard !isLoading else { return }
+                        guard !isLoading, !liveActivity.isBusy else { return }
+                        selectionVersion = UUID()
+                        serverSnapshot = nil
                         scoreUpdatedAt = nil
                         opponentRosterID = nil
                         myRosterID = nil
@@ -161,7 +177,7 @@ struct ContentView: View {
                     .disabled(isLoading && selectedLeague?.league_id == league.league_id)
                 }
             }
-            .allowsHitTesting(!isLoading)
+            .allowsHitTesting(!isLoading && !liveActivity.isBusy)
             lookupFeedback
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -183,9 +199,9 @@ struct ContentView: View {
             }
             if let yourScore, let opponentScore {
                 VStack(spacing: 20) {
-                    teamScoreRow(name: yourTeamName, role: "Your team", score: yourScore)
+                    teamScoreRow(name: yourTeamName, role: "Your team", score: yourScore, projected: activityState?.yourProjected)
                     Divider()
-                    teamScoreRow(name: opponentTeamName, role: "Opponent", score: opponentScore)
+                    teamScoreRow(name: opponentTeamName, role: "Opponent", score: opponentScore, projected: activityState?.opponentProjected)
                 }
                 .padding(24)
                 .background(Color(uiColor: .secondarySystemGroupedBackground),
@@ -193,14 +209,20 @@ struct ContentView: View {
             }
             lookupFeedback
             liveActivityControls
-            Text("Projections and automatic background updates will be available after the server is connected.")
+            Text(liveActivity.isConnected ? "Updates are requested about every 75 seconds; delivery can vary. Proj. values are experimental estimates, not Sleeper’s official live projections." : "Connect your server for automatic background updates. Local previews update only when you refresh here.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var selectedMatchup: MatchupSelection? {
+        guard let league = selectedLeague, let week = currentWeek, let rosterId = myRosterID else { return nil }
+        return .init(leagueId: league.league_id, week: week, rosterId: rosterId)
+    }
+
     private var activityState: MatchupActivityAttributes.ContentState? {
+        if liveActivity.isConnected { return serverSnapshot?.state }
         guard let yourScore, let opponentScore, let scoreUpdatedAt else { return nil }
         return .init(yourScore: yourScore, opponentScore: opponentScore,
                      yourProjected: nil, opponentProjected: nil,
@@ -227,7 +249,7 @@ struct ContentView: View {
                 isLoading = true
                 Task {
                     defer { isLoading = false }
-                    await findMatchup(league: selectedLeague)
+                    await findMatchup(league: selectedLeague, navigate: false)
                 }
             } label: {
                 Label("Refresh scores", systemImage: "arrow.clockwise")
@@ -250,13 +272,23 @@ struct ContentView: View {
                 Button {
                     guard let league = selectedLeague, let week = currentWeek,
                           let rosterId = myRosterID, let state = activityState else { return }
-                    liveActivity.start(attributes: .init(
-                        leagueName: league.name, yourName: yourTeamName,
-                        opponentName: opponentTeamName, week: week,
-                        leagueId: league.league_id, rosterId: rosterId, previewOnly: true
-                    ), state: state)
+                    if liveActivity.isConnected, let selection = selectedMatchup {
+                        let version = selectionVersion
+                        Task {
+                            if let result = await liveActivity.startRemote(selection),
+                               version == selectionVersion, selection == selectedMatchup {
+                                applySnapshot(result)
+                            }
+                        }
+                    } else {
+                        liveActivity.start(attributes: .init(
+                            leagueName: league.name, yourName: yourTeamName,
+                            opponentName: opponentTeamName, week: week,
+                            leagueId: league.league_id, rosterId: rosterId, previewOnly: true
+                        ), state: state)
+                    }
                 } label: {
-                    Label("Preview Live Activity", systemImage: "lock.rectangle")
+                    Label(liveActivity.isConnected ? "Start Live Activity" : "Preview Live Activity", systemImage: "lock.rectangle")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
@@ -269,17 +301,17 @@ struct ContentView: View {
         }
     }
 
-    private func teamScoreRow(name: String, role: String, score: Double) -> some View {
+    private func teamScoreRow(name: String, role: String, score: Double, projected: Double?) -> some View {
         // Large accessibility text can place the score below the name instead.
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: 16) {
                 teamNameLabel(name: name, role: role)
                 Spacer(minLength: 8)
-                scoreLabel(score)
+                scoreLabel(score, projected: projected)
             }
             VStack(alignment: .leading, spacing: 12) {
                 teamNameLabel(name: name, role: role)
-                scoreLabel(score)
+                scoreLabel(score, projected: projected)
             }
         }
         .accessibilityElement(children: .combine)
@@ -296,11 +328,17 @@ struct ContentView: View {
         }
     }
 
-    private func scoreLabel(_ score: Double) -> some View {
-        Text(score, format: .number.precision(.fractionLength(2)))
-            .font(.largeTitle.weight(.bold))
-            .monospacedDigit()
-            .fixedSize()
+    private func scoreLabel(_ score: Double, projected: Double?) -> some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(score, format: .number.precision(.fractionLength(2)))
+                .font(.largeTitle.weight(.bold)).monospacedDigit().fixedSize()
+            if let projected {
+                Text("Proj. \(projected, format: .number.precision(.fractionLength(2)))")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("Proj. —").font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var lookupFeedback: some View {
@@ -318,7 +356,7 @@ struct ContentView: View {
 
     var findAccountButton: some View {
         Button {
-            guard !isLoading else { return }
+            guard !isLoading, !liveActivity.isBusy else { return }
             Task { await findUser() }
         } label: {
             Text("Find my account")
@@ -360,6 +398,25 @@ struct ContentView: View {
             }
         }
         .tint(accentColor)
+        .sheet(isPresented: $showServerSetup) { ServerSetupView(manager: liveActivity) }
+        .onChange(of: liveActivity.connectionVersion) { _, _ in
+            selectionVersion = UUID()
+            serverSnapshot = nil
+            scoreUpdatedAt = nil
+            yourScore = nil
+            opponentScore = nil
+        }
+        .task(id: "\(scenePhase)-\(showMatchup)-\(selectedMatchup?.leagueId ?? "")-\(selectedMatchup?.week ?? 0)-\(selectedMatchup?.rosterId ?? 0)-\(liveActivity.connectionVersion)") {
+            guard scenePhase == .active, showMatchup, liveActivity.isConnected else { return }
+            while !Task.isCancelled {
+                if !isLoading, !liveActivity.isBusy, let league = selectedLeague {
+                    isLoading = true
+                    await findMatchup(league: league, navigate: false)
+                    isLoading = false
+                }
+                do { try await Task.sleep(for: .seconds(75)) } catch { return }
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { liveActivity.restore() }
         }
@@ -367,6 +424,8 @@ struct ContentView: View {
 
     // User lookup and loading leagues tied to it
     func findUser() async {
+        selectionVersion = UUID()
+        serverSnapshot = nil
         scoreUpdatedAt = nil
         currentWeek = nil
         sleeperUser = nil
@@ -528,7 +587,7 @@ struct ContentView: View {
     }
     
     // Fetches the selected week's matchup and finds the opponent.
-    func findMatchup(league: SleeperLeague) async {
+    func findMatchup(league: SleeperLeague, navigate: Bool = true) async {
         guard let myRosterID = myRosterID else {
             lookupMessage = "roster id is missing"
             return
@@ -538,6 +597,26 @@ struct ContentView: View {
             return
         }
         
+        let version = selectionVersion
+        let connection = liveActivity.connectionVersion
+        if liveActivity.isConnected {
+            do {
+                let selection = MatchupSelection(leagueId: league.league_id, week: currentWeek, rosterId: myRosterID)
+                let result = try await liveActivity.snapshot(selection)
+                guard !Task.isCancelled, version == selectionVersion,
+                      connection == liveActivity.connectionVersion, selectedMatchup == selection else { return }
+                if serverSnapshot == nil || result.state.updatedAt >= serverSnapshot!.state.updatedAt {
+                    applySnapshot(result)
+                }
+                lookupMessage = "Matchup loaded."
+                if navigate { showMatchup = true }
+            } catch {
+                guard !Task.isCancelled, version == selectionVersion else { return }
+                lookupMessage = error.localizedDescription
+            }
+            return
+        }
+
         do{
             let url = URL(string: "https://api.sleeper.app/v1/league")!
                 .appendingPathComponent(league.league_id)
@@ -551,6 +630,7 @@ struct ContentView: View {
                 return
             }
             
+            guard !Task.isCancelled, version == selectionVersion, connection == liveActivity.connectionVersion else { return }
             let matchups = try JSONDecoder().decode([SleeperMatchup].self, from: data)
             let myMatchup = matchups.first {
                 matchup in matchup.roster_id == myRosterID
@@ -593,7 +673,7 @@ struct ContentView: View {
                 await liveActivity.refresh(leagueId: league.league_id, rosterId: myRosterID,
                                            week: currentWeek, state: state)
             }
-            showMatchup = true
+            if navigate { showMatchup = true }
         } catch {
             lookupMessage = "Couldn't find matchup."
         }
@@ -638,7 +718,14 @@ struct ContentView: View {
         }
     }
     
-    // Server registration and remote push updates are the next milestone.
+    private func applySnapshot(_ snapshot: ServerSnapshot) {
+        serverSnapshot = snapshot
+        yourScore = snapshot.state.yourScore
+        opponentScore = snapshot.state.opponentScore
+        scoreUpdatedAt = snapshot.state.updatedAt
+        yourTeamName = snapshot.attributes.yourName
+        opponentTeamName = snapshot.attributes.opponentName
+    }
 }
 
 #Preview {
