@@ -33,6 +33,12 @@ struct RemoteActivityRecord: Codable, Identifiable {
 struct IntegrationState: Codable {
     var credentials: ServerCredentials?
     var records: [RemoteActivityRecord] = []
+
+    mutating func discardExpiredCleanup(now: TimeInterval, activeIDs: Set<String>) {
+        // The server independently expires registrations after eight hours.
+        // A dead temporary URL must not block reconnecting forever.
+        records.removeAll { $0.ending && $0.expiresAt <= now && !activeIDs.contains($0.id) }
+    }
 }
 
 // One atomic Keychain item keeps credentials and pending work tied to the same server.

@@ -4,6 +4,19 @@ import XCTest
 final class ServerIntegrationTests: XCTestCase {
     private let selection = MatchupSelection(leagueId: "123456789", week: 7, rosterId: 4)
 
+    func testExpiredCleanupDoesNotBlockNewServerButProtectsActiveAndUnexpiredRecords() {
+        var record = makeRecord()
+        record.ending = true
+        var state = IntegrationState()
+        state.records = [record]
+        state.discardExpiredCleanup(now: record.expiresAt - 1, activeIDs: [])
+        XCTAssertEqual(state.records.count, 1)
+        state.discardExpiredCleanup(now: record.expiresAt, activeIDs: [record.id])
+        XCTAssertEqual(state.records.count, 1)
+        state.discardExpiredCleanup(now: record.expiresAt, activeIDs: [])
+        XCTAssertTrue(state.records.isEmpty)
+    }
+
     func testOnlyBareHTTPSAddressesAccepted() throws {
         XCTAssertEqual(try ServerClient.baseURL(" https://example.com/ ").host, "example.com")
         for value in ["http://example.com", "https://user:secret@example.com", "https://example.com/api", "https://example.com?token=secret", "https://example.com#fragment", ""] {

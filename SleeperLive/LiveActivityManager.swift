@@ -97,6 +97,8 @@ final class LiveActivityManager: ObservableObject {
                     let exists = activities.contains { $0.id == state.records[i].id && ($0.activityState == .active || $0.activityState == .stale) }
                     if !exists || state.records[i].expiresAt <= Date().timeIntervalSince1970 { state.records[i].ending = true }
                 }
+                state.discardExpiredCleanup(now: Date().timeIntervalSince1970,
+                    activeIDs: Set(activities.filter { $0.activityState == .active || $0.activityState == .stale }.map(\.id)))
             }
         } catch { message = error.localizedDescription; return }
         if existing?.id != activity?.id {
