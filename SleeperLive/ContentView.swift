@@ -52,6 +52,9 @@ struct ContentView: View {
     @State private var serverSnapshot: ServerSnapshot?
     @State private var selectionVersion = UUID()
 
+    @AppStorage("lastSuccessfulUsername") private var rememberedUsername = ""
+    @AppStorage("lastSelectedLeagueID") private var rememberedLeagueID = ""
+    @State private var didRestoreAccount = false
     @State private var username = ""
     @State private var lookupMessage = ""
     @State private var sleeperUser: SleeperUser? = nil
@@ -147,6 +150,7 @@ struct ContentView: View {
                         yourTeamName = "You"
                         opponentTeamName = "Opponent"
                         selectedLeague = league
+                        rememberedLeagueID = league.league_id
                         Task {
                             await findMyRoster(league: league)
                         }
@@ -398,6 +402,19 @@ struct ContentView: View {
             }
         }
         .tint(accentColor)
+        .task {
+            guard !didRestoreAccount else { return }
+            didRestoreAccount = true
+            guard !rememberedUsername.isEmpty else { return }
+            username = rememberedUsername
+            let leagueID = rememberedLeagueID
+            await findUser()
+            guard !Task.isCancelled,
+                  let league = leagues.first(where: { $0.league_id == leagueID }) else { return }
+            selectedLeague = league
+            // Load fresh scores and the current week instead of restoring stale scores.
+            await findMyRoster(league: league)
+        }
         .sheet(isPresented: $showServerSetup) { ServerSetupView(manager: liveActivity) }
         .onChange(of: liveActivity.connectionVersion) { _, _ in
             selectionVersion = UUID()
@@ -473,6 +490,10 @@ struct ContentView: View {
             )
 
             if let user {
+                if rememberedUsername.caseInsensitiveCompare(cleanUsername) != .orderedSame {
+                    rememberedLeagueID = ""
+                }
+                rememberedUsername = cleanUsername
                 sleeperUser = user
                 lookupMessage = "Found: \(user.display_name ?? cleanUsername)"
                 await findLeagues(for: user.user_id)
