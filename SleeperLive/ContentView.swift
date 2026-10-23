@@ -2,12 +2,12 @@ import SwiftUI
 import ActivityKit
 
 // Data we receive from Sleeper.
-struct SleeperUser: Decodable {
+struct SleeperUser: Codable {
     let user_id: String
     let display_name: String?
 }
 
-struct SleeperLeague: Decodable, Identifiable {
+struct SleeperLeague: Codable, Identifiable {
     let league_id: String
     let name: String
 
@@ -44,6 +44,20 @@ struct SleeperLeagueUserMetadata: Decodable {
     let team_name: String?
 }
 
+private struct SavedDashboard: Codable {
+    let username: String
+    let user: SleeperUser
+    let league: SleeperLeague
+    let rosterID: Int
+    let week: Int
+    let snapshot: ServerSnapshot?
+    let yourScore: Double
+    let opponentScore: Double
+    let yourTeamName: String
+    let opponentTeamName: String
+    let updatedAt: Int
+}
+
 struct ContentView: View {
     @StateObject private var liveActivity = LiveActivityManager()
     @Environment(\.scenePhase) private var scenePhase
@@ -54,7 +68,10 @@ struct ContentView: View {
 
     @AppStorage("lastSuccessfulUsername") private var rememberedUsername = ""
     @AppStorage("lastSelectedLeagueID") private var rememberedLeagueID = ""
+    @AppStorage("savedDashboard") private var dashboardData = Data()
+    @State private var choosingLeague = false
     @State private var didRestoreAccount = false
+    private var displaysDashboard: Bool { !rememberedLeagueID.isEmpty && !choosingLeague }
     @State private var username = ""
     @State private var lookupMessage = ""
     @State private var sleeperUser: SleeperUser? = nil
@@ -150,7 +167,6 @@ struct ContentView: View {
                         yourTeamName = "You"
                         opponentTeamName = "Opponent"
                         selectedLeague = league
-                        rememberedLeagueID = league.league_id
                         Task {
                             await findMyRoster(league: league)
                         }
@@ -249,11 +265,11 @@ struct ContentView: View {
                 }
             }
             Button {
-                guard !isLoading, let selectedLeague else { return }
+                guard !isLoading else { return }
                 isLoading = true
                 Task {
                     defer { isLoading = false }
-                    await findMatchup(league: selectedLeague, navigate: false)
+                    await refreshDashboard()
                 }
             } label: {
                 Label("Refresh scores", systemImage: "arrow.clockwise")
@@ -377,27 +393,69 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                welcomeView.padding(24)
+                if displaysDashboard {
+                    matchupView.padding(24)
+                } else if showLeagueSelection || choosingLeague {
+                    leagueSelectionView.padding(24)
+                } else {
+                    welcomeView.padding(24)
+                }
             }
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
-                findAccountButton
-                    .padding(24)
-                    .background(Color(uiColor: .systemGroupedBackground))
+                if !displaysDashboard && !showLeagueSelection && !choosingLeague {
+                    findAccountButton.padding(24)
+                        .background(Color(uiColor: .systemGroupedBackground))
+                }
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationDestination(isPresented: $showLeagueSelection) {
-                ScrollView {
-                    leagueSelectionView.padding(24)
-                }
-                .background(Color(uiColor: .systemGroupedBackground))
-                .navigationBarTitleDisplayMode(.inline)
-                .navigationDestination(isPresented: $showMatchup) {
-                    ScrollView {
-                        matchupView.padding(24)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if !rememberedUsername.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            if displaysDashboard {
+                                Button("Change league") {
+                                    Task {
+                                        isLoading = true
+                                        await liveActivity.stop()
+                                        guard !liveActivity.hasActivity else { isLoading = false; return }
+                                        choosingLeague = true
+                                        showMatchup = false
+                                        if let sleeperUser { await findLeagues(for: sleeperUser.user_id) }
+                                        isLoading = false
+                                    }
+                                }
+                            }
+                            Button("Change username") {
+                                Task {
+                                    isLoading = true
+                                    await liveActivity.stop()
+                                    guard !liveActivity.hasActivity else { isLoading = false; return }
+                                    selectionVersion = UUID()
+                                    rememberedUsername = ""
+                                    rememberedLeagueID = ""
+                                    dashboardData = Data()
+                                    username = ""
+                                    sleeperUser = nil
+                                    selectedLeague = nil
+                                    myRosterID = nil
+                                    currentWeek = nil
+                                    leagues = []
+                                    serverSnapshot = nil
+                                    yourScore = nil
+                                    opponentScore = nil
+                                    scoreUpdatedAt = nil
+                                    lookupMessage = ""
+                                    choosingLeague = false
+                                    showLeagueSelection = false
+                                    showMatchup = false
+                                    isLoading = false
+                                }
+                            }
+                        } label: { Label("Account", systemImage: "person.crop.circle") }
+                        .disabled(isLoading || liveActivity.isBusy)
                     }
-                    .background(Color(uiColor: .systemGroupedBackground))
-                    .navigationBarTitleDisplayMode(.inline)
                 }
             }
         }
@@ -407,13 +465,26 @@ struct ContentView: View {
             didRestoreAccount = true
             guard !rememberedUsername.isEmpty else { return }
             username = rememberedUsername
-            let leagueID = rememberedLeagueID
-            await findUser()
-            guard !Task.isCancelled,
-                  let league = leagues.first(where: { $0.league_id == leagueID }) else { return }
-            selectedLeague = league
-            // Load fresh scores and the current week instead of restoring stale scores.
-            await findMyRoster(league: league)
+            if let saved = try? JSONDecoder().decode(SavedDashboard.self, from: dashboardData),
+               saved.username == rememberedUsername, saved.league.league_id == rememberedLeagueID {
+                sleeperUser = saved.user
+                selectedLeague = saved.league
+                myRosterID = saved.rosterID
+                currentWeek = saved.week
+                serverSnapshot = saved.snapshot
+                yourScore = saved.yourScore
+                opponentScore = saved.opponentScore
+                yourTeamName = saved.yourTeamName
+                opponentTeamName = saved.opponentTeamName
+                scoreUpdatedAt = saved.updatedAt
+                lookupMessage = "Showing saved scores. Refreshing…"
+                isLoading = true
+                showMatchup = true
+                await refreshDashboard()
+                isLoading = false
+            } else {
+                await restoreAccount()
+            }
         }
         .sheet(isPresented: $showServerSetup) { ServerSetupView(manager: liveActivity) }
         .onChange(of: liveActivity.connectionVersion) { _, _ in
@@ -423,12 +494,12 @@ struct ContentView: View {
             yourScore = nil
             opponentScore = nil
         }
-        .task(id: "\(scenePhase)-\(showMatchup)-\(selectedMatchup?.leagueId ?? "")-\(selectedMatchup?.week ?? 0)-\(selectedMatchup?.rosterId ?? 0)-\(liveActivity.connectionVersion)") {
+        .task(id: "\(scenePhase)-\(showMatchup)-\(liveActivity.connectionVersion)") {
             guard scenePhase == .active, showMatchup, liveActivity.isConnected else { return }
             while !Task.isCancelled {
-                if !isLoading, !liveActivity.isBusy, let league = selectedLeague {
+                if !isLoading, !liveActivity.isBusy {
                     isLoading = true
-                    await findMatchup(league: league, navigate: false)
+                    await refreshDashboard()
                     isLoading = false
                 }
                 do { try await Task.sleep(for: .seconds(75)) } catch { return }
@@ -437,6 +508,54 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { liveActivity.restore() }
         }
+    }
+
+    private func restoreAccount() async {
+        let leagueID = rememberedLeagueID
+        await findUser()
+        guard !Task.isCancelled else { return }
+        if let league = leagues.first(where: { $0.league_id == leagueID }) {
+            selectedLeague = league
+            await findMyRoster(league: league)
+        } else if !leagues.isEmpty {
+            rememberedLeagueID = ""
+            dashboardData = Data()
+            showLeagueSelection = true
+        }
+    }
+
+    private func refreshDashboard() async {
+        guard let league = selectedLeague, myRosterID != nil else {
+            await restoreAccount()
+            return
+        }
+        let previousWeek = currentWeek
+        do {
+            _ = try await fetchLeagueSeason()
+            guard !Task.isCancelled else { return }
+            if previousWeek != currentWeek {
+                serverSnapshot = nil
+                yourScore = nil
+                opponentScore = nil
+                scoreUpdatedAt = nil
+                dashboardData = Data()
+            }
+            await findMatchup(league: league, navigate: false)
+        } catch {
+            lookupMessage = "Couldn't refresh. Showing saved scores; try again when you're online."
+        }
+    }
+
+    private func saveDashboard() {
+        guard let user = sleeperUser, let league = selectedLeague,
+              let rosterID = myRosterID, let week = currentWeek,
+              let yourScore, let opponentScore, let scoreUpdatedAt else { return }
+        let saved = SavedDashboard(username: rememberedUsername, user: user, league: league,
+                                   rosterID: rosterID, week: week, snapshot: serverSnapshot,
+                                   yourScore: yourScore, opponentScore: opponentScore,
+                                   yourTeamName: yourTeamName, opponentTeamName: opponentTeamName,
+                                   updatedAt: scoreUpdatedAt)
+        if let data = try? JSONEncoder().encode(saved) { dashboardData = data }
     }
 
     // User lookup and loading leagues tied to it
@@ -630,7 +749,12 @@ struct ContentView: View {
                     applySnapshot(result)
                 }
                 lookupMessage = "Matchup loaded."
-                if navigate { showMatchup = true }
+                saveDashboard()
+                if navigate {
+                    rememberedLeagueID = league.league_id
+                    choosingLeague = false
+                    showMatchup = true
+                }
             } catch {
                 guard !Task.isCancelled, version == selectionVersion else { return }
                 lookupMessage = error.localizedDescription
@@ -694,7 +818,12 @@ struct ContentView: View {
                 await liveActivity.refresh(leagueId: league.league_id, rosterId: myRosterID,
                                            week: currentWeek, state: state)
             }
-            if navigate { showMatchup = true }
+            saveDashboard()
+                if navigate {
+                    rememberedLeagueID = league.league_id
+                    choosingLeague = false
+                    showMatchup = true
+                }
         } catch {
             lookupMessage = "Couldn't find matchup."
         }
@@ -746,6 +875,7 @@ struct ContentView: View {
         scoreUpdatedAt = snapshot.state.updatedAt
         yourTeamName = snapshot.attributes.yourName
         opponentTeamName = snapshot.attributes.opponentName
+        saveDashboard()
     }
 }
 

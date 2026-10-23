@@ -6,7 +6,7 @@ struct MatchupSelection: Codable, Hashable {
     let rosterId: Int
 }
 
-struct ServerSnapshot: Decodable {
+struct ServerSnapshot: Codable {
     var attributes: MatchupActivityAttributes
     let state: MatchupActivityAttributes.ContentState
 
