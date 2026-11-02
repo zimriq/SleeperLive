@@ -142,6 +142,53 @@ final class ServerIntegrationTests: XCTestCase {
         XCTAssertEqual(result.deviceToken, "new-token")
     }
 
+    func testDisconnectionSurvivesRelaunchWithoutLosingRetryCredentials() throws {
+        var state = IntegrationState(credentials: credentials, records: [makeRecord()])
+        state.beginDisconnection()
+        let restored = try JSONDecoder().decode(IntegrationState.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(restored.backgroundUpdatesDisabled, true)
+        XCTAssertEqual(restored.disconnectRequested, true)
+        XCTAssertEqual(restored.credentials?.deviceToken, credentials.deviceToken)
+        XCTAssertEqual(restored.records.count, 1)
+        state.finishDisconnection()
+        XCTAssertNil(state.credentials)
+        XCTAssertNil(state.pendingEnrollment)
+        XCTAssertTrue(state.records.isEmpty)
+        XCTAssertEqual(state.disconnectRequested, false)
+        XCTAssertEqual(state.backgroundUpdatesDisabled, true)
+    }
+
+    func testOlderSavedStateStillDecodes() throws {
+        let state = try JSONDecoder().decode(IntegrationState.self, from: Data(#"{"records":[]}"#.utf8))
+        XCTAssertNil(state.backgroundUpdatesDisabled)
+        XCTAssertNil(state.disconnectRequested)
+    }
+
+    func testDisconnectUsesAuthenticatedDeviceEndpointAndAcceptsRevokedRetry() async throws {
+        for status in [204, 401] {
+            let session = session { request in
+                XCTAssertEqual(request.httpMethod, "DELETE")
+                XCTAssertEqual(request.url?.path, "/v1/devices/me")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-device-token")
+                XCTAssertTrue(try Self.body(request).isEmpty)
+                return (status, [:], Data())
+            }
+            defer { session.invalidateAndCancel() }
+            try await ServerClient(credentials: credentials, session: session).disconnectDevice()
+        }
+    }
+
+    func testDisconnectDoesNotTreatServerFailureAsSuccess() async throws {
+        let session = session { _ in (503, [:], Data()) }
+        defer { session.invalidateAndCancel() }
+        do {
+            try await ServerClient(credentials: credentials, session: session).disconnectDevice()
+            XCTFail("Server disconnection must remain pending")
+        } catch let error as ServerError {
+            XCTAssertEqual(error.status, 503)
+        }
+    }
+
     private var credentials: ServerCredentials {
         .init(baseURL: URL(string: "https://example.com")!, deviceId: "device-1", deviceToken: "test-device-token")
     }

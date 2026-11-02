@@ -31,9 +31,11 @@ final class LiveActivityManager: ObservableObject {
         restore()
     }
 
-    var isConnected: Bool { saved.credentials != nil }
+    var isConnected: Bool { saved.credentials != nil && saved.disconnectRequested != true }
+    var backgroundUpdatesDisabled: Bool { saved.backgroundUpdatesDisabled == true }
+    var disconnectPending: Bool { saved.disconnectRequested == true }
     var hasActivity: Bool { activity != nil }
-    var canConnect: Bool { storageReady && !isBusy && !hasActivity && saved.records.isEmpty }
+    var canConnect: Bool { storageReady && !isBusy && !hasActivity && saved.records.isEmpty && !disconnectPending }
     private var client: ServerClient? { saved.credentials.map { ServerClient(credentials: $0) } }
 
     func matches(leagueId: String, rosterId: Int, week: Int) -> Bool {
@@ -73,8 +75,60 @@ final class LiveActivityManager: ObservableObject {
         } catch { message = error.localizedDescription; return false }
     }
 
+    func resumeBackgroundUpdates() async {
+        guard !isBusy, !disconnectPending else { return }
+        do { try change { $0.backgroundUpdatesDisabled = false } }
+        catch { message = error.localizedDescription; return }
+        await connectAutomatically()
+    }
+
+    // Save the opt-out before networking so relaunch never silently reenrolls.
+    func disconnectDevice() async -> Bool {
+        guard storageReady, !isBusy else { return false }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try change { $0.beginDisconnection() }
+            connectionVersion = UUID()
+            tokenTask?.cancel(); stateTask?.cancel(); tokenTimeoutTask?.cancel()
+            let worker = syncTask
+            worker?.cancel()
+            await worker?.value
+            syncTask = nil
+            // Drain any in-flight registration before revoking device access.
+            for current in Activity<MatchupActivityAttributes>.activities {
+                await current.end(nil, dismissalPolicy: .immediate)
+            }
+            activity = nil
+            if let client {
+                try await client.disconnectDevice()
+            } else if let pending = saved.pendingEnrollment,
+                      let id = pending.challengeId, pending.attestation != nil {
+                // Enrollment may have committed remotely before its response was saved.
+                let credentials = ServerCredentials(baseURL: pending.baseURL, deviceId: id,
+                                                    deviceToken: "\(id).\(pending.secret)")
+                try await ServerClient(credentials: credentials).disconnectDevice()
+            }
+            try change { $0.finishDisconnection() }
+            serverAddress = ""
+            serverMode = ""
+            registrationFailure = nil
+            nextEnrollmentAttempt = 0
+            nextSnapshotAttempt = 0
+            message = "Device disconnected. Background updates are off. Server security records may remain."
+            return true
+        } catch {
+            message = "Background updates are off on this device. Server disconnection is unfinished; retry when connected. " + error.localizedDescription
+            return false
+        }
+    }
+
     func connectAutomatically() async {
-        guard !isConnected, canConnect else { return }
+        if disconnectPending {
+            _ = await disconnectDevice()
+            return
+        }
+        guard !backgroundUpdatesDisabled, !isConnected, canConnect else { return }
         guard Date().timeIntervalSince1970 >= nextEnrollmentAttempt else {
             message = "Please wait a minute before trying again."
             return
@@ -121,7 +175,7 @@ final class LiveActivityManager: ObservableObject {
     }
 
     func restore() {
-        guard storageReady else { return }
+        guard storageReady, !disconnectPending else { return }
         let activities = Activity<MatchupActivityAttributes>.activities
         let existing = activities.first { $0.activityState == .active || $0.activityState == .stale }
         do {
@@ -297,7 +351,7 @@ final class LiveActivityManager: ObservableObject {
     // One serial worker owns PUT/DELETE ordering. Token observers can replace the
     // queued token while a request is in flight; the newest token is sent next.
     private func sync() {
-        guard syncTask == nil, client != nil else { return }
+        guard syncTask == nil, client != nil, !disconnectPending else { return }
         syncTask = Task { [weak self] in
             guard let self else { return }
             defer { self.syncTask = nil }

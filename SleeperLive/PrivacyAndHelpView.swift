@@ -28,6 +28,10 @@ private enum PublicContact {
 }
 
 struct PrivacyAndHelpView: View {
+    @ObservedObject var manager: LiveActivityManager
+    var canDisconnect: Bool
+    var clearSavedSelection: () -> Void
+    @State private var confirmDisconnect = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -53,6 +57,18 @@ struct PrivacyAndHelpView: View {
                     Text("Proj. values are experimental estimates, not Sleeper’s official live projections. A dash means an estimate is unavailable.")
                 }
 
+                Section("Device access") {
+                    Button(manager.disconnectPending ? "Retry device disconnection" : "Disconnect device & clear saved matchup", role: .destructive) {
+                        confirmDisconnect = true
+                    }
+                    .disabled(manager.isBusy || !canDisconnect)
+                    if manager.isBusy { ProgressView("Updating device access…") }
+                    Text("Disconnecting stops your Live Activities, revokes this device’s server access, and clears its saved username and matchup. Background updates stay off until you enable them again. This does not delete your Sleeper account. Server identifiers used to prevent key reuse, logs, and backups may remain.")
+                    if !manager.message.isEmpty {
+                        Text(manager.message).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Your saved selection") {
                     Text("Choose Change username from the Account menu to clear the saved username, selected league, and cached matchup in this app. This does not delete your Sleeper account or server-side device registration.")
                 }
@@ -75,6 +91,15 @@ struct PrivacyAndHelpView: View {
                     LabeledContent("Version", value: version)
                 }
             }
+            .confirmationDialog("Disconnect this device?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
+                Button("Disconnect & clear saved matchup", role: .destructive) {
+                    clearSavedSelection()
+                    Task { _ = await manager.disconnectDevice() }
+                }
+            } message: {
+                Text("Your Live Activities will stop and your saved matchup will be cleared. If the server is unavailable, disconnection will retry when you reopen the app or choose Retry. Security records and backups may remain.")
+            }
+            .interactiveDismissDisabled(manager.isBusy)
             .navigationTitle("Privacy & Help")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

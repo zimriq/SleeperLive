@@ -149,7 +149,16 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             if !liveActivity.isConnected {
                 if liveActivity.isBusy {
-                    ProgressView("Connecting background updates…")
+                    ProgressView("Updating background connection…")
+                } else if liveActivity.disconnectPending {
+                    Button("Retry device disconnection") {
+                        Task { _ = await liveActivity.disconnectDevice() }
+                    }
+                } else if liveActivity.backgroundUpdatesDisabled {
+                    Text("Background updates are off.")
+                    Button("Enable background updates") {
+                        Task { await liveActivity.resumeBackgroundUpdates() }
+                    }
                 } else {
                     Button("Retry background connection") {
                         Task { await liveActivity.connectAutomatically() }
@@ -461,24 +470,7 @@ struct ContentView: View {
                                     isLoading = true
                                     await liveActivity.stop()
                                     guard !liveActivity.hasActivity else { isLoading = false; return }
-                                    selectionVersion = UUID()
-                                    rememberedUsername = ""
-                                    rememberedLeagueID = ""
-                                    dashboardData = Data()
-                                    username = ""
-                                    sleeperUser = nil
-                                    selectedLeague = nil
-                                    myRosterID = nil
-                                    currentWeek = nil
-                                    leagues = []
-                                    serverSnapshot = nil
-                                    yourScore = nil
-                                    opponentScore = nil
-                                    scoreUpdatedAt = nil
-                                    lookupMessage = ""
-                                    choosingLeague = false
-                                    showLeagueSelection = false
-                                    showMatchup = false
+                                    clearSavedSelection()
                                     isLoading = false
                                 }
                             }
@@ -490,7 +482,8 @@ struct ContentView: View {
         }
         .tint(accentColor)
         .sheet(isPresented: $showPrivacyAndHelp) {
-            PrivacyAndHelpView()
+            PrivacyAndHelpView(manager: liveActivity, canDisconnect: !isLoading,
+                               clearSavedSelection: clearSavedSelection)
         }
         .task {
             guard !didRestoreAccount else { return }
@@ -903,6 +896,31 @@ struct ContentView: View {
         }
     }
     
+    private func clearSavedSelection() {
+        selectionVersion = UUID()
+        rememberedUsername = ""
+        rememberedLeagueID = ""
+        dashboardData = Data()
+        username = ""
+        sleeperUser = nil
+        selectedLeague = nil
+        myRosterID = nil
+        opponentRosterID = nil
+        leagueRosters = []
+        currentWeek = nil
+        leagues = []
+        serverSnapshot = nil
+        yourScore = nil
+        opponentScore = nil
+        yourTeamName = "You"
+        opponentTeamName = "Opponent"
+        scoreUpdatedAt = nil
+        lookupMessage = ""
+        choosingLeague = false
+        showLeagueSelection = false
+        showMatchup = false
+    }
+
     private func applySnapshot(_ snapshot: ServerSnapshot) {
         serverSnapshot = snapshot
         yourScore = snapshot.state.yourScore

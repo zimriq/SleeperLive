@@ -33,7 +33,22 @@ struct RemoteActivityRecord: Codable, Identifiable {
 struct IntegrationState: Codable {
     var credentials: ServerCredentials?
     var pendingEnrollment: PendingEnrollment?
+    var backgroundUpdatesDisabled: Bool?
+    var disconnectRequested: Bool?
     var records: [RemoteActivityRecord] = []
+
+    mutating func beginDisconnection() {
+        backgroundUpdatesDisabled = true
+        disconnectRequested = true
+    }
+
+    mutating func finishDisconnection() {
+        credentials = nil
+        pendingEnrollment = nil
+        records = []
+        disconnectRequested = false
+        backgroundUpdatesDisabled = true
+    }
 
     mutating func discardExpiredCleanup(now: TimeInterval, activeIDs: Set<String>) {
         // The server independently expires registrations after eight hours.
