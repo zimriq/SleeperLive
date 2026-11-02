@@ -3,8 +3,11 @@ import SwiftUI
 // Set these Info.plist values to real, public destinations before submission.
 // No placeholder address or guessed policy URL is shown to users.
 private enum PublicContact {
-    static var privacyPolicyURL: URL? {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "SleeperLivePrivacyPolicyURL") as? String,
+    static var privacyPolicyURL: URL? { httpsURL(for: "SleeperLivePrivacyPolicyURL") }
+    static var supportPageURL: URL? { httpsURL(for: "SleeperLiveSupportURL") }
+
+    private static func httpsURL(for key: String) -> URL? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
               let url = URL(string: value), url.scheme?.lowercased() == "https",
               let host = url.host, !host.isEmpty,
               url.user == nil, url.password == nil else { return nil }
@@ -54,8 +57,13 @@ struct PrivacyAndHelpView: View {
                     Text("Choose Change username from the Account menu to clear the saved username, selected league, and cached matchup in this app. This does not delete your Sleeper account or server-side device registration.")
                 }
 
-                if let url = PublicContact.supportURL {
-                    Section("Support") {
+                Section("Support") {
+                    if let url = PublicContact.supportPageURL {
+                        Link(destination: url) {
+                            Label("Support website", systemImage: "questionmark.circle")
+                        }
+                    }
+                    if let url = PublicContact.supportURL {
                         Link(destination: url) {
                             Label("Email support", systemImage: "envelope")
                         }
