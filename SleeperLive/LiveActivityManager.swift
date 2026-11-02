@@ -20,6 +20,7 @@ final class LiveActivityManager: ObservableObject {
     private var tokenTimeoutTask: Task<Void, Never>?
     private var registrationFailure: String?
     private var nextSnapshotAttempt: TimeInterval = 0
+    private var nextEnrollmentAttempt: TimeInterval = 0
 
     init() {
         do {
@@ -70,6 +71,38 @@ final class LiveActivityManager: ObservableObject {
                 : "Server connected. Load your matchup to continue."
             return true
         } catch { message = error.localizedDescription; return false }
+    }
+
+    func connectAutomatically() async {
+        guard !isConnected, canConnect else { return }
+        guard Date().timeIntervalSince1970 >= nextEnrollmentAttempt else {
+            message = "Please wait a minute before trying again."
+            return
+        }
+        isBusy = true
+        nextEnrollmentAttempt = Date().timeIntervalSince1970 + 60
+        message = "Connecting background updates…"
+        defer { isBusy = false }
+        do {
+            let credentials = try await AutomaticEnrollment.enroll(pending: saved.pendingEnrollment) { pending in
+                try self.change { $0.pendingEnrollment = pending }
+            }
+            try change { state in
+                state.credentials = credentials
+                state.pendingEnrollment = nil
+            }
+            serverAddress = credentials.baseURL.absoluteString
+            registrationFailure = nil
+            nextSnapshotAttempt = 0
+            connectionVersion = UUID()
+            serverMode = (try? await ServerClient(credentials: credentials).health()) ?? "unknown"
+            message = "Background updates connected."
+        } catch {
+            if let error = error as? ServerError {
+                nextEnrollmentAttempt = Date().timeIntervalSince1970 + max(60, error.retryAfter ?? 0)
+            }
+            message = error.localizedDescription
+        }
     }
 
     func snapshot(_ selection: MatchupSelection) async throws -> ServerSnapshot {

@@ -32,6 +32,7 @@ struct RemoteActivityRecord: Codable, Identifiable {
 
 struct IntegrationState: Codable {
     var credentials: ServerCredentials?
+    var pendingEnrollment: PendingEnrollment?
     var records: [RemoteActivityRecord] = []
 
     mutating func discardExpiredCleanup(now: TimeInterval, activeIDs: Set<String>) {
@@ -78,16 +79,22 @@ struct IntegrationStore {
     }
 }
 
-// Private device testing: derive the APNs environment from the embedded profile,
-// not from Debug/Release. Distribution without an embedded profile fails closed.
+// Honor embedded profiles for Xcode installs; store-distributed releases use production.
 enum PushEnvironment {
     static func current() throws -> String {
         #if targetEnvironment(simulator)
         throw ServerError(status: 422, retryAfter: nil,
                           errorDescription: "Use your signed physical iPhone for server updates. The simulator supports the local preview.")
         #else
-        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
-              let data = try? Data(contentsOf: url), let environment = parseProfile(data) else {
+        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision") else {
+            #if DEBUG
+            throw ServerError(status: 422, retryAfter: nil, errorDescription: "Push signing isn't available in this build.")
+            #else
+            // Apple removes the embedded provisioning profile for store distribution.
+            return "production"
+            #endif
+        }
+        guard let data = try? Data(contentsOf: url), let environment = parseProfile(data) else {
             throw ServerError(status: 422, retryAfter: nil,
                               errorDescription: "Push signing isn't ready. Enable Push Notifications and select your paid Apple team in Xcode, then reinstall on your phone.")
         }

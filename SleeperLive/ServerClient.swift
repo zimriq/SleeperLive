@@ -135,12 +135,12 @@ struct ServerClient {
         guard (200..<300).contains(http.statusCode) else {
             let message: String
             switch http.statusCode {
-            case 401: message = "Server access expired. Stop your activity, then reconnect in Server setup."
-            case 403: message = "The invitation was not accepted. Check your tester invitation."
+            case 401: message = "Device access is unavailable. Please contact beta support."
+            case 403: message = "This device could not be verified. Please try again or contact beta support."
             case 409: message = "This activity has ended or no longer matches. Start a new one."
             case 429: message = "The server is busy. Waiting before retrying."
             case 503: message = "The matchup is temporarily unavailable. Please try again."
-            default: message = "Server request failed (\(http.statusCode)). Check your server setup."
+            default: message = "Server request failed (\(http.statusCode)). Please try again."
             }
             throw ServerError(status: http.statusCode,
                               retryAfter: Self.retryDelay(http.value(forHTTPHeaderField: "Retry-After")),

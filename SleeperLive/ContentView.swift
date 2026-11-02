@@ -63,6 +63,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var scoreUpdatedAt: Int?
     @State private var showServerSetup = false
+    @State private var showPrivacyAndHelp = false
     @State private var serverSnapshot: ServerSnapshot?
     @State private var selectionVersion = UUID()
 
@@ -132,13 +133,33 @@ struct ContentView: View {
                 Button("Stop Live Activity", role: .destructive) { Task { await liveActivity.stop() } }
                     .disabled(liveActivity.isBusy)
             }
+            connectionControls
+            #if DEBUG
             Button(liveActivity.isConnected ? "Server connected · Settings" : "Set up background updates") {
                 showServerSetup = true
             }
             .font(.footnote)
             .disabled(isLoading || liveActivity.isBusy)
+            #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var connectionControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !liveActivity.isConnected {
+                if liveActivity.isBusy {
+                    ProgressView("Connecting background updates…")
+                } else {
+                    Button("Retry background connection") {
+                        Task { await liveActivity.connectAutomatically() }
+                    }
+                }
+                if !liveActivity.message.isEmpty {
+                    Text(liveActivity.message).font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     var leagueSelectionView: some View {
@@ -228,8 +249,9 @@ struct ContentView: View {
                             in: RoundedRectangle(cornerRadius: 24))
             }
             lookupFeedback
+            connectionControls
             liveActivityControls
-            Text(liveActivity.isConnected ? "Updates are requested about every 75 seconds; delivery can vary. Proj. values are experimental estimates, not Sleeper’s official live projections." : "Connect your server for automatic background updates. Local previews update only when you refresh here.")
+            Text(liveActivity.isConnected ? "Updates are requested about every 75 seconds; delivery can vary. Proj. values are experimental estimates, not Sleeper’s official live projections." : "Background updates will be available once your device connects. You can still view and refresh your matchup.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -308,12 +330,12 @@ struct ContentView: View {
                         ), state: state)
                     }
                 } label: {
-                    Label(liveActivity.isConnected ? "Start Live Activity" : "Preview Live Activity", systemImage: "lock.rectangle")
+                    Label("Start Live Activity", systemImage: "lock.rectangle")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.roundedRectangle(radius: 16))
-                .disabled(isLoading || activityState == nil || liveActivity.isBusy)
+                .disabled(isLoading || activityState == nil || liveActivity.isBusy || !liveActivity.isConnected)
             }
             if !liveActivity.message.isEmpty {
                 Text(liveActivity.message).font(.footnote).foregroundStyle(.secondary)
@@ -384,7 +406,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
         }
-        .disabled(isLoading)
+        .disabled(isLoading || liveActivity.isBusy)
         .buttonStyle(.borderedProminent)
         .tint(accentColor)
         .buttonBorderShape(.roundedRectangle(radius: 16))
@@ -411,6 +433,13 @@ struct ContentView: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showPrivacyAndHelp = true
+                    } label: {
+                        Label("Privacy & Help", systemImage: "questionmark.circle")
+                    }
+                }
                 if !rememberedUsername.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
@@ -460,6 +489,9 @@ struct ContentView: View {
             }
         }
         .tint(accentColor)
+        .sheet(isPresented: $showPrivacyAndHelp) {
+            PrivacyAndHelpView()
+        }
         .task {
             guard !didRestoreAccount else { return }
             didRestoreAccount = true
@@ -486,7 +518,10 @@ struct ContentView: View {
                 await restoreAccount()
             }
         }
+        .task { await liveActivity.connectAutomatically() }
+        #if DEBUG
         .sheet(isPresented: $showServerSetup) { ServerSetupView(manager: liveActivity) }
+        #endif
         .onChange(of: liveActivity.connectionVersion) { _, _ in
             selectionVersion = UUID()
             serverSnapshot = nil
