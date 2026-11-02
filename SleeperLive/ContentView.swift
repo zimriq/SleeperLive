@@ -64,6 +64,7 @@ struct ContentView: View {
     @State private var scoreUpdatedAt: Int?
     @State private var showServerSetup = false
     @State private var showPrivacyAndHelp = false
+    @State private var showSampleMatchup = false
     @State private var serverSnapshot: ServerSnapshot?
     @State private var selectionVersion = UUID()
 
@@ -126,6 +127,8 @@ struct ContentView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+            Button("Try a sample matchup") { showSampleMatchup = true }
+                .disabled(isLoading || liveActivity.isBusy)
             lookupFeedback
             if let activity = liveActivity.activity {
                 Text("Active: \(activity.attributes.leagueName) · Week \(activity.attributes.week)")
@@ -443,10 +446,12 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showPrivacyAndHelp = true
+                    Menu {
+                        Button("Privacy & Help", systemImage: "questionmark.circle") { showPrivacyAndHelp = true }
+                        Button("Try a sample matchup", systemImage: "testtube.2") { showSampleMatchup = true }
+                            .disabled(isLoading || liveActivity.isBusy)
                     } label: {
-                        Label("Privacy & Help", systemImage: "questionmark.circle")
+                        Label("Help & Preview", systemImage: "questionmark.circle")
                     }
                 }
                 if !rememberedUsername.isEmpty {
@@ -481,6 +486,9 @@ struct ContentView: View {
             }
         }
         .tint(accentColor)
+        .sheet(isPresented: $showSampleMatchup) {
+            SampleMatchupView(manager: liveActivity)
+        }
         .sheet(isPresented: $showPrivacyAndHelp) {
             PrivacyAndHelpView(manager: liveActivity, canDisconnect: !isLoading,
                                clearSavedSelection: clearSavedSelection)
