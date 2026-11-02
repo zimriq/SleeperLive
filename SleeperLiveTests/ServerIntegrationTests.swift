@@ -158,6 +158,27 @@ final class ServerIntegrationTests: XCTestCase {
         XCTAssertEqual(state.backgroundUpdatesDisabled, true)
     }
 
+    func testFreshInstallRequiresExplicitOptInAndRemembersIt() throws {
+        var state = IntegrationState()
+        XCTAssertFalse(state.mayEnrollAutomatically)
+        state.backgroundUpdatesDisabled = false
+        XCTAssertFalse(state.mayEnrollAutomatically)
+        state.enableBackgroundUpdates()
+        let restored = try JSONDecoder().decode(IntegrationState.self, from: JSONEncoder().encode(state))
+        XCTAssertTrue(restored.mayEnrollAutomatically)
+        state.beginDisconnection()
+        XCTAssertFalse(state.mayEnrollAutomatically)
+        state.finishDisconnection()
+        XCTAssertFalse(state.mayEnrollAutomatically)
+        state.enableBackgroundUpdates()
+        XCTAssertTrue(state.mayEnrollAutomatically)
+    }
+
+    func testLegacyPendingEnrollmentDoesNotImplicitlyGrantConsent() throws {
+        let state = try JSONDecoder().decode(IntegrationState.self, from: Data(#"{"records":[],"backgroundUpdatesDisabled":false}"#.utf8))
+        XCTAssertFalse(state.mayEnrollAutomatically)
+    }
+
     func testOlderSavedStateStillDecodes() throws {
         let state = try JSONDecoder().decode(IntegrationState.self, from: Data(#"{"records":[]}"#.utf8))
         XCTAssertNil(state.backgroundUpdatesDisabled)

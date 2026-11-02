@@ -35,10 +35,21 @@ struct IntegrationState: Codable {
     var pendingEnrollment: PendingEnrollment?
     var backgroundUpdatesDisabled: Bool?
     var disconnectRequested: Bool?
+    var backgroundUpdatesOptedIn: Bool?
+
+    var mayEnrollAutomatically: Bool {
+        backgroundUpdatesOptedIn == true && backgroundUpdatesDisabled != true && disconnectRequested != true
+    }
+
+    mutating func enableBackgroundUpdates() {
+        backgroundUpdatesOptedIn = true
+        backgroundUpdatesDisabled = false
+    }
     var records: [RemoteActivityRecord] = []
 
     mutating func beginDisconnection() {
         backgroundUpdatesDisabled = true
+        backgroundUpdatesOptedIn = false
         disconnectRequested = true
     }
 

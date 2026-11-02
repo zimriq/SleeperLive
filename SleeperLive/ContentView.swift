@@ -65,6 +65,7 @@ struct ContentView: View {
     @State private var showServerSetup = false
     @State private var showPrivacyAndHelp = false
     @State private var showSampleMatchup = false
+    @State private var showBackgroundUpdatesConsent = false
     @State private var serverSnapshot: ServerSnapshot?
     @State private var selectionVersion = UUID()
 
@@ -157,10 +158,10 @@ struct ContentView: View {
                     Button("Retry device disconnection") {
                         Task { _ = await liveActivity.disconnectDevice() }
                     }
-                } else if liveActivity.backgroundUpdatesDisabled {
+                } else if liveActivity.backgroundUpdatesDisabled || liveActivity.needsBackgroundUpdatesConsent {
                     Text("Background updates are off.")
                     Button("Enable background updates") {
-                        Task { await liveActivity.resumeBackgroundUpdates() }
+                        showBackgroundUpdatesConsent = true
                     }
                 } else {
                     Button("Retry background connection") {
@@ -486,6 +487,9 @@ struct ContentView: View {
             }
         }
         .tint(accentColor)
+        .sheet(isPresented: $showBackgroundUpdatesConsent) {
+            BackgroundUpdatesConsentView(manager: liveActivity)
+        }
         .sheet(isPresented: $showSampleMatchup) {
             SampleMatchupView(manager: liveActivity)
         }

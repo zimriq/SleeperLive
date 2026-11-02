@@ -12,11 +12,11 @@ SleeperLive is an independent companion for viewing Sleeper fantasy football mat
 4. Reopen the sample and tap **Simulate score update** to change Sample Home's score. This is a manual local update, not a real game or background push. **Reset sample scores** reverses it.
 5. Tap **Stop sample Live Activity** before starting a real matchup. Closing the sample screen does not stop an activity already started. Samples never replace an existing real activity.
 
-The sample's league label is Sample matchup, and the Live Activity is labeled Preview. Sample selections and scores are not registered with the background service. The app's automatic device enrollment at launch is separate and can still occur on supported physical devices. The simulator cannot complete the real App Attest/push enrollment flow; local sample activities do not require it.
+The sample's league label is Sample matchup, and the Live Activity is labeled Preview. Sample selections and scores are not registered with the background service. On new installs, real device enrollment starts only after the user opens Enable background updates, reads the data-use explanation, and taps Enable background updates. Previously connected installations retain their existing access. The simulator cannot complete the real App Attest/push enrollment flow; local sample activities do not require it.
 
 ## Real matchup flow
 
-Enter a public Sleeper username, select a league with a current assigned matchup, and load it. Once background updates connect, start the Live Activity. The hosted service must be reachable and production signing/push configuration must be valid. Sample mode demonstrates presentation and manual local updates; it does not substitute for testing real server updates.
+Enter a public Sleeper username, select a league with a current assigned matchup, and load it. Choose Enable background updates and confirm the explanation. Once the device connects, start the Live Activity. Manual score lookup remains available without background enrollment. The hosted service must be reachable and production signing/push configuration must be valid. Sample mode demonstrates presentation and manual local updates; it does not substitute for testing real server updates.
 
 Review submission still needs a verified review username/league if necessary, the published privacy-policy link, final privacy disclosures, and production-device validation. Do not include passwords, access credentials, or push tokens in review notes.
 

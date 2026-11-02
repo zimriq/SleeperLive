@@ -33,6 +33,7 @@ final class LiveActivityManager: ObservableObject {
 
     var isConnected: Bool { saved.credentials != nil && saved.disconnectRequested != true }
     var backgroundUpdatesDisabled: Bool { saved.backgroundUpdatesDisabled == true }
+    var needsBackgroundUpdatesConsent: Bool { saved.backgroundUpdatesOptedIn != true }
     var disconnectPending: Bool { saved.disconnectRequested == true }
     var hasActivity: Bool { activity != nil }
     var canConnect: Bool { storageReady && !isBusy && !hasActivity && saved.records.isEmpty && !disconnectPending }
@@ -77,7 +78,7 @@ final class LiveActivityManager: ObservableObject {
 
     func resumeBackgroundUpdates() async {
         guard !isBusy, !disconnectPending else { return }
-        do { try change { $0.backgroundUpdatesDisabled = false } }
+        do { try change { $0.enableBackgroundUpdates() } }
         catch { message = error.localizedDescription; return }
         await connectAutomatically()
     }
@@ -128,7 +129,7 @@ final class LiveActivityManager: ObservableObject {
             _ = await disconnectDevice()
             return
         }
-        guard !backgroundUpdatesDisabled, !isConnected, canConnect else { return }
+        guard saved.mayEnrollAutomatically, !isConnected, canConnect else { return }
         guard Date().timeIntervalSince1970 >= nextEnrollmentAttempt else {
             message = "Please wait a minute before trying again."
             return
