@@ -26,3 +26,7 @@ The in-app overview is not a complete privacy policy. Final publication needs ve
 ## Background-update opt-in
 
 Implemented an explanation and explicit enable action before new device enrollment. Skipping leaves public Sleeper lookup, manual refresh, and sample mode available. The choice is saved in Keychain; device disconnection revokes the opt-in. Existing connected installations keep their established access. This is not a substitute for a published privacy policy, final privacy disclosures, or full data deletion.
+
+## Accessibility improvements
+
+Added team names and actual-score descriptions to compact and minimal Dynamic Island VoiceOver output. Preview and stale status are announced, and actual scores are distinguished from estimates. Sample score rows stack when horizontal space is insufficient. Increased contrast of the decorative VS label and hid it from VoiceOver. Build validation does not replace physical-device checks: verify VoiceOver reading order, all Dynamic Type sizes, long team names, display zoom, and system Live Activity height constraints before submission.

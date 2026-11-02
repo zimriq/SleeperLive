@@ -98,14 +98,25 @@ struct SampleMatchupView: View {
         }
     }
 
+    private func sampleScore(_ score: Double) -> some View {
+        Text(score, format: .number.precision(.fractionLength(2)))
+            .font(.title2.bold()).monospacedDigit().fixedSize()
+    }
+
     private func scoreRow(_ name: String, score: Double) -> some View {
-        HStack {
-            Text(name).font(.headline)
-            Spacer()
-            Text(score, format: .number.precision(.fractionLength(2)))
-                .font(.title2.bold()).monospacedDigit()
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                Text(name).font(.headline).fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 16)
+                sampleScore(score)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(name).font(.headline)
+                sampleScore(score)
+            }
         }
         .padding(.vertical, 8)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Sample team \(name), actual score \(score, format: .number.precision(.fractionLength(2)))"))
     }
 }

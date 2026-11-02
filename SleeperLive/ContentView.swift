@@ -387,11 +387,14 @@ struct ContentView: View {
         VStack(alignment: .trailing, spacing: 4) {
             Text(score, format: .number.precision(.fractionLength(2)))
                 .font(.largeTitle.weight(.bold)).monospacedDigit().fixedSize()
+                .accessibilityLabel(Text("Actual score \(score, format: .number.precision(.fractionLength(2)))"))
             if let projected {
                 Text("Proj. \(projected, format: .number.precision(.fractionLength(2)))")
                     .font(.caption).foregroundStyle(.secondary)
+                    .accessibilityLabel(Text("Estimated final score \(projected, format: .number.precision(.fractionLength(2)))"))
             } else {
                 Text("Proj. —").font(.caption).foregroundStyle(.secondary)
+                    .accessibilityLabel("Estimated final score unavailable")
             }
         }
     }

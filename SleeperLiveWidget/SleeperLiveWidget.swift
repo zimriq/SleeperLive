@@ -22,8 +22,9 @@ struct MatchupLiveActivity: Widget {
                 HStack(alignment: .top, spacing: 16) {
                     team(name: context.attributes.yourName, score: context.state.yourScore,
                          projected: context.state.yourProjected)
-                    Text("VS").font(.caption2.bold()).foregroundStyle(.white.opacity(0.5))
+                    Text("VS").font(.caption2.bold()).foregroundStyle(.white.opacity(0.8))
                         .padding(.top, 28)
+                        .accessibilityHidden(true)
                     team(name: context.attributes.opponentName, score: context.state.opponentScore,
                          projected: context.state.opponentProjected)
                 }
@@ -51,15 +52,18 @@ struct MatchupLiveActivity: Widget {
             } compactLeading: {
                 Text(context.state.yourScore, format: .number.precision(.fractionLength(2)))
                     .monospacedDigit().foregroundStyle(.green)
-                    .accessibilityLabel("Your score \(context.state.yourScore)")
+                    .accessibilityLabel(Text("\(context.attributes.yourName), actual score \(context.state.yourScore, format: .number.precision(.fractionLength(2)))"))
+                    .accessibilityValue(activityStatus(context))
             } compactTrailing: {
                 Text(context.state.opponentScore, format: .number.precision(.fractionLength(2)))
                     .monospacedDigit()
-                    .accessibilityLabel("Opponent score \(context.state.opponentScore)")
+                    .accessibilityLabel(Text("\(context.attributes.opponentName), actual score \(context.state.opponentScore, format: .number.precision(.fractionLength(2)))"))
+                    .accessibilityValue(activityStatus(context))
             } minimal: {
                 Image(systemName: context.isStale ? "clock.badge.exclamationmark" : "sportscourt.fill")
                     .foregroundStyle(context.isStale ? .orange : .green)
-                    .accessibilityLabel(context.isStale ? "Matchup needs refresh" : "Matchup preview")
+                    .accessibilityLabel(Text("\(context.attributes.yourName), \(context.state.yourScore, format: .number.precision(.fractionLength(2))); \(context.attributes.opponentName), \(context.state.opponentScore, format: .number.precision(.fractionLength(2)))"))
+                    .accessibilityValue(activityStatus(context))
             }
             .keylineTint(.green)
         }
@@ -80,7 +84,24 @@ struct MatchupLiveActivity: Widget {
         }
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(name), actual score \(score, format: .number.precision(.fractionLength(2)))"))
+        .accessibilityValue(projectionDescription(projected))
+    }
+
+    private func projectionDescription(_ projected: Double?) -> Text {
+        if let projected, projected.isFinite {
+            return Text("Estimated final score \(projected, format: .number.precision(.fractionLength(2)))")
+        }
+        return Text("Estimated final score unavailable")
+    }
+
+    private func activityStatus(_ context: ActivityViewContext<MatchupActivityAttributes>) -> Text {
+        if context.attributes.previewOnly == true {
+            return Text(context.isStale ? "Preview. Scores may be outdated. No automatic background updates." : "Preview. No automatic background updates.")
+        }
+        if context.isStale { return Text("Scores may be outdated. Open the app to refresh.") }
+        return Text("Updated \(context.state.updatedDate, style: .time)")
     }
 
     private func status(_ context: ActivityViewContext<MatchupActivityAttributes>) -> some View {
