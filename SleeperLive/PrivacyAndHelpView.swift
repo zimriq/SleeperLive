@@ -32,6 +32,7 @@ struct PrivacyAndHelpView: View {
     var canDisconnect: Bool
     var clearSavedSelection: () -> Void
     @State private var confirmDisconnect = false
+    @State private var requestDataDeletion = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -58,10 +59,17 @@ struct PrivacyAndHelpView: View {
                 }
 
                 Section("Device access") {
-                    Button(manager.disconnectPending ? "Retry device disconnection" : "Disconnect device & clear saved matchup", role: .destructive) {
+                    Button(manager.disconnectPending ? "Retry pending device request" : "Disconnect device & clear saved matchup", role: .destructive) {
+                        requestDataDeletion = manager.deviceDataDeletionPending
                         confirmDisconnect = true
                     }
                     .disabled(manager.isBusy || !canDisconnect)
+                    Button("Delete device data", role: .destructive) {
+                        requestDataDeletion = true
+                        confirmDisconnect = true
+                    }
+                    .disabled(manager.isBusy || !canDisconnect || manager.disconnectPending)
+                    Text("Delete device data also removes this device’s registration, verification keys, push tokens, and activity records from the active server database. Older database copies, logs, and backups may remain. Other devices and your Sleeper account are unaffected.")
                     if manager.isBusy { ProgressView("Updating device access…") }
                     Text("Disconnecting stops your Live Activities, revokes this device’s server access, and clears its saved username and matchup. Background updates stay off until you enable them again. This does not delete your Sleeper account. Server identifiers used to prevent key reuse, logs, and backups may remain.")
                     if !manager.message.isEmpty {
@@ -91,13 +99,15 @@ struct PrivacyAndHelpView: View {
                     LabeledContent("Version", value: version)
                 }
             }
-            .confirmationDialog("Disconnect this device?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
-                Button("Disconnect & clear saved matchup", role: .destructive) {
+            .confirmationDialog(requestDataDeletion ? "Delete this device’s data?" : "Disconnect this device?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
+                Button(requestDataDeletion ? "Delete device data & clear matchup" : "Disconnect & clear saved matchup", role: .destructive) {
                     clearSavedSelection()
-                    Task { _ = await manager.disconnectDevice() }
+                    Task { _ = await manager.disconnectDevice(deleteData: requestDataDeletion) }
                 }
             } message: {
-                Text("Your Live Activities will stop and your saved matchup will be cleared. If the server is unavailable, disconnection will retry when you reopen the app or choose Retry. Security records and backups may remain.")
+                Text(requestDataDeletion
+                    ? "This stops Live Activities and removes this device’s records from the active server database. Your saved matchup will be cleared. Deletion cannot be undone. If confirmation fails, the request stays pending for retry. Older backups or logs may remain."
+                    : "Your Live Activities will stop and your saved matchup will be cleared. If the server is unavailable, disconnection will retry when you reopen the app or choose Retry. Security records and backups may remain.")
             }
             .interactiveDismissDisabled(manager.isBusy)
             .navigationTitle("Privacy & Help")

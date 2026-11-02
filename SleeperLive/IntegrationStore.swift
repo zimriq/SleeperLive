@@ -36,6 +36,7 @@ struct IntegrationState: Codable {
     var backgroundUpdatesDisabled: Bool?
     var disconnectRequested: Bool?
     var backgroundUpdatesOptedIn: Bool?
+    var deleteDeviceDataRequested: Bool?
 
     var mayEnrollAutomatically: Bool {
         backgroundUpdatesOptedIn == true && backgroundUpdatesDisabled != true && disconnectRequested != true
@@ -47,7 +48,8 @@ struct IntegrationState: Codable {
     }
     var records: [RemoteActivityRecord] = []
 
-    mutating func beginDisconnection() {
+    mutating func beginDisconnection(deleteData: Bool = false) {
+        deleteDeviceDataRequested = deleteData || deleteDeviceDataRequested == true
         backgroundUpdatesDisabled = true
         backgroundUpdatesOptedIn = false
         disconnectRequested = true
@@ -58,6 +60,7 @@ struct IntegrationState: Codable {
         pendingEnrollment = nil
         records = []
         disconnectRequested = false
+        deleteDeviceDataRequested = false
         backgroundUpdatesDisabled = true
     }
 

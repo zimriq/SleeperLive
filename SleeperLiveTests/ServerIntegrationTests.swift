@@ -210,6 +210,39 @@ final class ServerIntegrationTests: XCTestCase {
         }
     }
 
+    func testDeletionIntentSurvivesRelaunchAndCannotDowngradeToRevocation() throws {
+        var state = IntegrationState(credentials: credentials, records: [makeRecord()])
+        state.beginDisconnection(deleteData: true)
+        state = try JSONDecoder().decode(IntegrationState.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(state.deleteDeviceDataRequested, true)
+        state.beginDisconnection()
+        XCTAssertEqual(state.deleteDeviceDataRequested, true)
+        XCTAssertNotNil(state.credentials)
+        XCTAssertFalse(state.mayEnrollAutomatically)
+        state.finishDisconnection()
+        XCTAssertEqual(state.deleteDeviceDataRequested, false)
+        XCTAssertNil(state.credentials)
+    }
+
+    func testDataDeletionRequiresExplicitServerConfirmation() async throws {
+        for status in [204, 401, 404, 503] {
+            let session = session { request in
+                XCTAssertEqual(request.httpMethod, "DELETE")
+                XCTAssertEqual(request.url?.path, "/v1/devices/me/data")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-device-token")
+                return (status, [:], Data())
+            }
+            defer { session.invalidateAndCancel() }
+            do {
+                try await ServerClient(credentials: credentials, session: session).disconnectDevice(deleteData: true)
+                XCTAssertEqual(status, 204, "Revocation, an old server, and failures must not count as confirmed deletion")
+            } catch let error as ServerError {
+                XCTAssertNotEqual(status, 204)
+                XCTAssertEqual(error.status, status)
+            }
+        }
+    }
+
     private var credentials: ServerCredentials {
         .init(baseURL: URL(string: "https://example.com")!, deviceId: "device-1", deviceToken: "test-device-token")
     }

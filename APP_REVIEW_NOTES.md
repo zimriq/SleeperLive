@@ -23,3 +23,7 @@ Review submission still needs a verified review username/league if necessary, th
 ## Privacy and device controls
 
 Open the question-mark menu and choose **Privacy & Help** for the support website, contact email, and device-disconnection control. Disconnection clears the local selection and revokes this device's access, with retry if offline. It is not complete erasure of retained server security records or backups.
+
+## Device-data deletion
+
+Privacy & Help offers **Delete device data** separately from disconnection. After confirmation, the app clears its saved matchup, ends local Live Activities, and requests deletion of the current device registration and owned activity records from the active database. It retains secure retry credentials until the server confirms success, then clears them and leaves background updates off. Historical database copies, logs, and backups are not erased by this action. Deploy the matching server endpoint before submitting this app build; complete production-device and retention verification first.

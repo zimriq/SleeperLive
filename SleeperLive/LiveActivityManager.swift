@@ -34,6 +34,7 @@ final class LiveActivityManager: ObservableObject {
     var isConnected: Bool { saved.credentials != nil && saved.disconnectRequested != true }
     var backgroundUpdatesDisabled: Bool { saved.backgroundUpdatesDisabled == true }
     var needsBackgroundUpdatesConsent: Bool { saved.backgroundUpdatesOptedIn != true }
+    var deviceDataDeletionPending: Bool { disconnectPending && saved.deleteDeviceDataRequested == true }
     var disconnectPending: Bool { saved.disconnectRequested == true }
     var hasActivity: Bool { activity != nil }
     var canConnect: Bool { storageReady && !isBusy && !hasActivity && saved.records.isEmpty && !disconnectPending }
@@ -84,12 +85,13 @@ final class LiveActivityManager: ObservableObject {
     }
 
     // Save the opt-out before networking so relaunch never silently reenrolls.
-    func disconnectDevice() async -> Bool {
+    func disconnectDevice(deleteData: Bool = false) async -> Bool {
         guard storageReady, !isBusy else { return false }
+        let deleting = deleteData || saved.deleteDeviceDataRequested == true
         isBusy = true
         defer { isBusy = false }
         do {
-            try change { $0.beginDisconnection() }
+            try change { $0.beginDisconnection(deleteData: deleting) }
             connectionVersion = UUID()
             tokenTask?.cancel(); stateTask?.cancel(); tokenTimeoutTask?.cancel()
             let worker = syncTask
@@ -102,13 +104,13 @@ final class LiveActivityManager: ObservableObject {
             }
             activity = nil
             if let client {
-                try await client.disconnectDevice()
+                try await client.disconnectDevice(deleteData: deleting)
             } else if let pending = saved.pendingEnrollment,
                       let id = pending.challengeId, pending.attestation != nil {
                 // Enrollment may have committed remotely before its response was saved.
                 let credentials = ServerCredentials(baseURL: pending.baseURL, deviceId: id,
                                                     deviceToken: "\(id).\(pending.secret)")
-                try await ServerClient(credentials: credentials).disconnectDevice()
+                try await ServerClient(credentials: credentials).disconnectDevice(deleteData: deleting)
             }
             try change { $0.finishDisconnection() }
             serverAddress = ""
@@ -116,10 +118,14 @@ final class LiveActivityManager: ObservableObject {
             registrationFailure = nil
             nextEnrollmentAttempt = 0
             nextSnapshotAttempt = 0
-            message = "Device disconnected. Background updates are off. Server security records may remain."
+            message = deleting
+                ? "Device records deleted from the active server database. Background updates are off. Older backups or logs may remain."
+                : "Device disconnected. Background updates are off. Server security records may remain."
             return true
         } catch {
-            message = "Background updates are off on this device. Server disconnection is unfinished; retry when connected. " + error.localizedDescription
+            message = deleting
+                ? "Background updates are off. Server deletion could not be confirmed. Retry when connected; if access is unavailable, contact support. " + error.localizedDescription
+                : "Background updates are off on this device. Server disconnection is unfinished; retry when connected. " + error.localizedDescription
             return false
         }
     }

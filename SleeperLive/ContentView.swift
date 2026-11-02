@@ -155,7 +155,7 @@ struct ContentView: View {
                 if liveActivity.isBusy {
                     ProgressView("Updating background connection…")
                 } else if liveActivity.disconnectPending {
-                    Button("Retry device disconnection") {
+                    Button(liveActivity.deviceDataDeletionPending ? "Retry device data deletion" : "Retry device disconnection") {
                         Task { _ = await liveActivity.disconnectDevice() }
                     }
                 } else if liveActivity.backgroundUpdatesDisabled || liveActivity.needsBackgroundUpdatesConsent {

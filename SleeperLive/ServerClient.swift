@@ -116,10 +116,10 @@ struct ServerClient {
         _ = try await request("v1/activities/\(record.id)", method: "PUT", body: JSONEncoder().encode(body))
     }
 
-    func disconnectDevice() async throws {
+    func disconnectDevice(deleteData: Bool = false) async throws {
         do {
-            _ = try await request("v1/devices/me", method: "DELETE")
-        } catch let error as ServerError where error.status == 401 {
+            _ = try await request(deleteData ? "v1/devices/me/data" : "v1/devices/me", method: "DELETE")
+        } catch let error as ServerError where !deleteData && error.status == 401 {
             // A lost successful response may be retried with the revoked credential.
             return
         }
