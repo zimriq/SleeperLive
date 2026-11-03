@@ -59,6 +59,10 @@ struct PrivacyAndHelpView: View {
                     Text("Proj. values are experimental estimates, not Sleeper’s official live projections. A dash means an estimate is unavailable.")
                 }
 
+                Section("Background connection") {
+                    DeviceRegistrationStatusView(manager: manager)
+                }
+
                 Section("Device access") {
                     Button(manager.disconnectPending ? "Retry pending device request" : "Disconnect device & clear saved matchup", role: .destructive) {
                         requestDataDeletion = manager.deviceDataDeletionPending

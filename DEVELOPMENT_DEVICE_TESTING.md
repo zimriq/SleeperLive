@@ -24,7 +24,7 @@ Use the shared **SleeperLive Dev** Xcode scheme. It uses the Develop build confi
 2. Select **SleeperLive Dev** from the scheme picker and your physical iPhone as the destination.
 3. Check Signing & Capabilities for the app/widget using your paid team. Xcode may need to register the new identifiers or create matching profiles. Resolve any signing errors without changing production identifiers.
 4. Run. Confirm the home-screen name says SleeperLive Dev and the toolbar says Development.
-5. Tap Enable background updates, read the disclosure, and confirm. Record whether Background updates connected appears. Do not share device credentials or tokens.
+5. Tap Enable background updates, read the disclosure, and confirm. After setup closes, look for Device registration saved on the welcome/matchup screen, or open Privacy & Help → Background connection. Test mode is shown when the current session has confirmed the dry-run health response. This means local registration credentials were saved; compare server records before declaring end-to-end registration verified. Do not share device credentials or tokens.
 6. Username lookup/manual refresh and the local sample are available. The server deliberately refuses real remote Live Activity start in dry-run; that is not an enrollment failure. Real APNs delivery and owned activity-record deletion require a later controlled live-mode test.
 
 ## Verify device deletion next

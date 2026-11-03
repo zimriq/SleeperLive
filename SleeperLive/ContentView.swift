@@ -143,7 +143,9 @@ struct ContentView: View {
 
     private var connectionControls: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if !liveActivity.isConnected {
+            if liveActivity.isConnected {
+                DeviceRegistrationStatusView(manager: liveActivity)
+            } else {
                 if liveActivity.isBusy {
                     ProgressView("Updating background connection…")
                 } else if liveActivity.disconnectPending {
