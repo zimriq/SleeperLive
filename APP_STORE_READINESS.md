@@ -73,3 +73,8 @@ Replaced the long background-update consent sheet with a native SwiftUI alert of
 ## Privacy publication — November 3, 2026
 
 Published privacy policy and connected its HTTPS URL in AppInfo.plist. Policy identifies Zimri Quinonez, distinguishes retained-registration logout from current-device deletion, and discloses built-in Railway logs, manual support-email retention, and no configured production backup schedule. Production backup safeguard was intentionally skipped by the owner. Owner reports production flows working; screenshots show successful deletion, enrollment, matchup requests, and activity registration. Read-only production output confirms Apple accepted a recent live update. An intermittent stale Live Activity warning was reproduced, then could no longer be reproduced in repeated owner tests; it remains unconfirmed fixed and requires TestFlight/game-time verification. Final privacy questionnaire, distribution signing, screenshots, and submission checks remain pending.
+
+
+## Enable background updates from an existing matchup
+
+Fixed connection changes clearing the displayed scores after enrollment. Preserve the current matchup while invalidating the server snapshot, and retry promptly while enrollment or an existing load finishes instead of skipping the initial 75-second poll. Live Activity start still requires a valid server snapshot. TestFlight regression: decline initially, load a matchup, enable background updates, confirm the matchup stays visible and can start a Live Activity without manual reload. Device verification pending.

@@ -547,19 +547,22 @@ struct ContentView: View {
         .task { await liveActivity.connectAutomatically() }
         .onChange(of: liveActivity.connectionVersion) { _, _ in
             selectionVersion = UUID()
+            // Invalidate connection-specific data without clearing the displayed matchup.
+            // A successful refresh replaces these saved scores with a server snapshot.
             serverSnapshot = nil
-            scoreUpdatedAt = nil
-            yourScore = nil
-            opponentScore = nil
         }
         .task(id: "\(scenePhase)-\(showMatchup)-\(liveActivity.connectionVersion)") {
             guard scenePhase == .active, showMatchup, liveActivity.isConnected else { return }
             while !Task.isCancelled {
-                if !isLoading, !liveActivity.isBusy {
-                    isLoading = true
-                    await refreshDashboard()
-                    isLoading = false
+                // Enrollment publishes its new connection before its final health check.
+                // Wait briefly for it (or another load), rather than skipping a full poll.
+                if isLoading || liveActivity.isBusy {
+                    do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                    continue
                 }
+                isLoading = true
+                await refreshDashboard()
+                isLoading = false
                 do { try await Task.sleep(for: .seconds(75)) } catch { return }
             }
         }
