@@ -1,5 +1,5 @@
 import unittest
-from check_release import contact_issues, distribution_issues, manifest_issues, public_https
+from check_release import contact_issues, distribution_issues, manifest_issues, public_https, entitlement_issues
 
 
 class ReleaseChecks(unittest.TestCase):
@@ -22,6 +22,11 @@ class ReleaseChecks(unittest.TestCase):
 
     def test_production_entitlements_pass_selected_checks(self):
         self.assertEqual(distribution_issues({"aps-environment": "production", "com.apple.developer.devicecheck.appattest-environment": "production", "get-task-allow": False}), [])
+
+    def test_unreadable_entitlements_produce_an_actionable_finding(self):
+        import plistlib
+        for value in (b"", b"not a plist", plistlib.dumps([])):
+            self.assertIn("Signing tool", entitlement_issues(value)[0])
 
     def test_empty_and_malformed_manifest_is_not_accepted(self):
         self.assertGreaterEqual(len(manifest_issues({})), 3)

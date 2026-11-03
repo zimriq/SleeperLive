@@ -42,3 +42,9 @@ The app observes ActivityKit authorization changes, rechecks on return to the fo
 ## Submission checks and server handoff
 
 Run `python3 scripts/check_release.py` for offline source checks, or add `--archive /path/to/SleeperLive.xcarchive` for distribution-archive checks. See RELEASE_CHECKS.md for scope and limitations. The missing privacy-policy URL remains a blocker. The server repository’s PRE_APP_STORE_SERVER_REVIEW.md records changes on develop and pending Railway, backup, log, deletion, and production-push verification. Add future server changes there before final release review.
+
+## Local archive validation — November 3, 2026
+
+A local signed Release archive was created successfully using the existing Xcode setup. The archive contains the widget and privacy manifest, declares Live Activities and frequent updates, targets iPhone and iPad, and has version 1.0/build 2 with minimum iOS 17.0. The current supplied standard/dark icon files are 1024×1024 with no alpha channel. These checks do not establish asset rights or screenshot readiness.
+
+With normal signing-tool access, signature verification passed. This local archive is development-signed (development APNs and debugger entitlement); App Attest is production. App Store distribution/export signing and physical-device delivery are not verified. Do not change the source push entitlement blindly: Xcode may re-sign for distribution. The release checker now reports these expected archive-signing findings as notes by default, with --require-distribution-signing available for a distribution-signed archive. It also handles empty/unreadable entitlement responses without hiding other findings. The missing privacy-policy URL remains a blocker. No archive was uploaded or deployed.

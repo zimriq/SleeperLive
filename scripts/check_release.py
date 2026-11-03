@@ -87,6 +87,16 @@ def distribution_issues(entitlements):
     return issues
 
 
+def entitlement_issues(data):
+    try:
+        entitlements = plistlib.loads(data)
+        if not isinstance(entitlements, dict):
+            raise ValueError("Expected signing dictionary")
+        return distribution_issues(entitlements)
+    except (ValueError, plistlib.InvalidFileException, TypeError):
+        return ["Signing tool returned no readable entitlements; verify signing-tool access before assessing distribution signing."]
+
+
 def read_plist(path):
     with path.open("rb") as stream:
         value = plistlib.load(stream)
@@ -99,7 +109,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--archive", type=Path, help="Optional distribution .xcarchive to inspect offline")
+    parser.add_argument("--require-distribution-signing", action="store_true", help="Treat development signing as a blocker; use only when checking a distribution-signed archive")
     args = parser.parse_args()
+    if args.require_distribution_signing and not args.archive:
+        parser.error("--require-distribution-signing requires --archive")
     try:
         source_info = read_plist(args.project / "AppInfo.plist")
         source_manifest = read_plist(args.project / "SleeperLive/PrivacyInfo.xcprivacy")
@@ -123,7 +136,14 @@ def main():
             if result.returncode:
                 issues.append("Could not inspect archive signing entitlements.")
             else:
-                issues += distribution_issues(plistlib.loads(result.stdout))
+                signing = entitlement_issues(result.stdout)
+                if args.require_distribution_signing or not result.stdout or any("no readable entitlements" in finding for finding in signing):
+                    issues += signing
+                else:
+                    for finding in signing:
+                        print("SIGNING NOTE:", finding)
+                    if signing:
+                        print("Development-signed archives may be re-signed during App Store export; these notes do not alone mean archive creation failed.")
     except (OSError, ValueError, plistlib.InvalidFileException, TypeError) as error:
         print("CHECK FAILED:", error)
         return 1

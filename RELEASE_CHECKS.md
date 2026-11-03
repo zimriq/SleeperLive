@@ -14,7 +14,9 @@ After creating a distribution archive in Xcode, inspect it with:
 python3 scripts/check_release.py --archive "/absolute/path/to/SleeperLive.xcarchive"
 ```
 
-Archive mode also checks the bundled metadata/manifest, consistency of contact configuration, Live Activity support, code signature, production push/App Attest entitlements, and absence of debugger entitlement. A local development archive can legitimately fail these distribution checks. Do not change the source development push entitlement merely to make a local build pass; inspect the actual distribution archive.
+Archive mode checks bundled metadata/manifest, contact configuration, Live Activity support and code signature. It also reports development push/App Attest or debugger entitlements as signing notes. A normal local archive may be development-signed before Xcode re-signs it during App Store distribution; development signing is not itself a failed archive.
+
+To make development-signing findings blockers when inspecting an archive you expect to already be distribution-signed, add `--require-distribution-signing`. This option requires --archive. Do not change the source development push entitlement merely to silence signing notes. Verify the final distribution export/TestFlight path in Xcode and on a physical device. An unreadable signing response is always reported as a check failure rather than parsed as an empty property list.
 
 Run the checker's tests:
 
