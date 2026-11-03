@@ -44,6 +44,7 @@ struct SampleMatchupView: View {
                 }
 
                 Section("Try the Lock Screen") {
+                    if !manager.liveActivitiesEnabled { LiveActivitySettingsView() }
                     if showingSampleActivity {
                         Button("Stop sample Live Activity", role: .destructive) {
                             Task { await manager.stop() }
@@ -54,7 +55,7 @@ struct SampleMatchupView: View {
                             manager.start(attributes: SampleMatchup.attributes,
                                           state: SampleMatchup.state(afterUpdate: updated))
                         }
-                        .disabled(manager.hasActivity || manager.isBusy || applyingUpdate || manager.disconnectPending)
+                        .disabled(manager.hasActivity || manager.isBusy || applyingUpdate || manager.disconnectPending || !manager.liveActivitiesEnabled)
                     }
 
                     Button(updated ? "Reset sample scores" : "Simulate score update") {

@@ -313,6 +313,9 @@ struct ContentView: View {
             .buttonStyle(.bordered)
             .disabled(isLoading || liveActivity.isBusy)
 
+            if !liveActivity.liveActivitiesEnabled {
+                LiveActivitySettingsView()
+            }
             if liveActivity.hasActivity {
                 if let activity = liveActivity.activity {
                     Text("On your Lock Screen: \(activity.attributes.leagueName) · Week \(activity.attributes.week)")
@@ -348,7 +351,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.roundedRectangle(radius: 16))
-                .disabled(isLoading || activityState == nil || liveActivity.isBusy || !liveActivity.isConnected)
+                .disabled(isLoading || activityState == nil || liveActivity.isBusy || !liveActivity.isConnected || !liveActivity.liveActivitiesEnabled)
             }
             if !liveActivity.message.isEmpty {
                 Text(liveActivity.message).font(.footnote).foregroundStyle(.secondary)

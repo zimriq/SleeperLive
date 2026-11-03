@@ -49,6 +49,7 @@ struct PrivacyAndHelpView: View {
                 }
 
                 Section("Live Activities") {
+                    LiveActivitySettingsView(showDisabledExplanation: !manager.liveActivitiesEnabled)
                     Text("Start a Live Activity from your matchup to follow scores on the Lock Screen. Use Stop Live Activity in the app to end it.")
                     Text("If an activity does not appear, check that Live Activities are enabled for SleeperLive in iPhone Settings.")
                 }

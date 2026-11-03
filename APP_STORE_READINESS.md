@@ -34,3 +34,7 @@ Added team names and actual-score descriptions to compact and minimal Dynamic Is
 ## Device-data deletion release checks
 
 Push/deploy the server update before using the new app deletion action. Verify on a physical device using a disposable registration: delete succeeds, device access fails afterward, other devices remain intact, and re-enable creates a fresh registration. Offline deletion must remain pending with automatic enrollment blocked. A 401 after a lost response is ambiguous and intentionally remains unconfirmed; support must verify the outcome without requesting bearer tokens. The existing disconnect action still revokes access without erasing replay records. Backup/log retention and restoration reconciliation remain unresolved; this feature alone does not establish complete account-deletion compliance.
+
+## Live Activity settings recovery
+
+The app observes ActivityKit authorization changes, rechecks on return to the foreground, disables Start while Live Activities are unavailable, and offers Open iPhone Settings from the matchup, sample, and Privacy & Help screens. The public UIApplication settings URL is used; no private settings deep links or notification permission prompts are introduced. If Settings cannot open, manual navigation guidance is shown. Verify disable/enable and return-to-app behavior on a physical iPhone; this does not prove production push delivery.

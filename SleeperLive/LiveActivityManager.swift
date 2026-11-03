@@ -4,6 +4,8 @@ import Foundation
 
 @MainActor
 final class LiveActivityManager: ObservableObject {
+    @Published private(set) var liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+    private var authorizationTask: Task<Void, Never>?
     @Published private(set) var activity: Activity<MatchupActivityAttributes>?
     @Published private(set) var message = ""
     @Published private(set) var isBusy = false
@@ -29,7 +31,15 @@ final class LiveActivityManager: ObservableObject {
             serverAddress = saved.credentials?.baseURL.absoluteString ?? ""
         } catch { message = error.localizedDescription }
         restore()
+        authorizationTask = Task { [weak self] in
+            for await enabled in ActivityAuthorizationInfo().activityEnablementUpdates {
+                guard !Task.isCancelled, let self else { return }
+                self.liveActivitiesEnabled = enabled
+            }
+        }
     }
+
+    deinit { authorizationTask?.cancel() }
 
     var isConnected: Bool { saved.credentials != nil && saved.disconnectRequested != true }
     var backgroundUpdatesDisabled: Bool { saved.backgroundUpdatesDisabled == true }
@@ -182,6 +192,7 @@ final class LiveActivityManager: ObservableObject {
     }
 
     func restore() {
+        liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
         guard storageReady, !disconnectPending else { return }
         let activities = Activity<MatchupActivityAttributes>.activities
         let existing = activities.first { $0.activityState == .active || $0.activityState == .stale }
@@ -272,7 +283,8 @@ final class LiveActivityManager: ObservableObject {
 
     private func canStart() -> Bool {
         guard activity == nil else { message = "Stop your current Live Activity before starting another."; return false }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+        liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        guard liveActivitiesEnabled else {
             message = "Live Activities are disabled. Enable them for SleeperLive in Settings."
             return false
         }
