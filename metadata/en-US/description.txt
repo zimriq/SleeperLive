@@ -1,0 +1,20 @@
+Keep your fantasy football matchup close with SleeperLive, an independent companion for Sleeper.
+
+YOUR MATCHUP AT A GLANCE
+Enter your Sleeper username, choose a league, and see your team's score alongside your opponent's. No Sleeper password or separate SleeperLive login is needed. Your last selection is saved so you can return to your matchup.
+
+FOLLOW FROM THE LOCK SCREEN
+Enable background updates and start a Live Activity to follow your matchup while the app is closed. View scores on the Lock Screen and, on supported devices, Dynamic Island. Background updates are optional; you can also view and refresh scores inside the app.
+
+KNOW WHAT YOU'RE SEEING
+Check the last update time and warnings when scores may be outdated. Proj. values, when available, are experimental estimates rather than Sleeper's official live projections. Missing estimates appear as a dash.
+
+TRY IT BEFORE CONNECTING
+Explore a clearly labeled sample matchup without entering a username. Start a local preview Live Activity and simulate a score update to see how it works. Sample scores are fictional and do not receive live game updates.
+
+CONTROL DEVICE ACCESS
+Use Privacy & Help to contact support, disconnect your device, or request deletion of its registration and activity records from the active server database. Historical database copies, logs, and backups may remain; consult the privacy policy for retention details.
+
+Live Activities must be enabled in system Settings. Score delivery depends on network conditions, iOS, and service availability; updates may be delayed. Real matchups require an available Sleeper fantasy football league and an assigned matchup for the current week.
+
+SleeperLive is not affiliated with or endorsed by Sleeper.
