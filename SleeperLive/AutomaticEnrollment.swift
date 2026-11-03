@@ -15,7 +15,7 @@ struct PendingEnrollment: Codable {
 
 @MainActor
 enum AutomaticEnrollment {
-    static let serverURL = URL(string: "https://sleeperlive-server-production.up.railway.app")!
+    static let serverURL = AppEnvironment.serverURL
 
     private static func unavailable(_ text: String) -> ServerError {
         .init(status: 422, retryAfter: nil, errorDescription: text)

@@ -444,6 +444,12 @@ struct ContentView: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                #if SLEEPERLIVE_DEVELOP
+                ToolbarItem(placement: .principal) {
+                    Text("Development").font(.caption.bold())
+                        .accessibilityLabel("Development build, test server")
+                }
+                #endif
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         Button("Privacy & Help", systemImage: "questionmark.circle") { showPrivacyAndHelp = true }

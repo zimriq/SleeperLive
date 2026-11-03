@@ -243,6 +243,16 @@ final class ServerIntegrationTests: XCTestCase {
         }
     }
 
+    func testBuildEnvironmentUsesTheMatchingServerAndAppIdentity() {
+        #if SLEEPERLIVE_DEVELOP
+        XCTAssertEqual(AppEnvironment.serverURL.absoluteString, "https://sleeperlive-server-develop.up.railway.app")
+        XCTAssertEqual(Bundle.main.bundleIdentifier, "com.zimri.SleeperLive.Develop")
+        #else
+        XCTAssertEqual(AppEnvironment.serverURL.absoluteString, "https://sleeperlive-server-production.up.railway.app")
+        XCTAssertEqual(Bundle.main.bundleIdentifier, "com.zimri.SleeperLive")
+        #endif
+    }
+
     private var credentials: ServerCredentials {
         .init(baseURL: URL(string: "https://example.com")!, deviceId: "device-1", deviceToken: "test-device-token")
     }
