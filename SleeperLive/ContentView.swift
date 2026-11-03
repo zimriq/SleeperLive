@@ -62,7 +62,6 @@ struct ContentView: View {
     @StateObject private var liveActivity = LiveActivityManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var scoreUpdatedAt: Int?
-    @State private var showServerSetup = false
     @State private var showPrivacyAndHelp = false
     @State private var showSampleMatchup = false
     @State private var showBackgroundUpdatesConsent = false
@@ -138,13 +137,6 @@ struct ContentView: View {
                     .disabled(liveActivity.isBusy)
             }
             connectionControls
-            #if DEBUG
-            Button(liveActivity.isConnected ? "Server connected · Settings" : "Set up background updates") {
-                showServerSetup = true
-            }
-            .font(.footnote)
-            .disabled(isLoading || liveActivity.isBusy)
-            #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -530,9 +522,6 @@ struct ContentView: View {
             }
         }
         .task { await liveActivity.connectAutomatically() }
-        #if DEBUG
-        .sheet(isPresented: $showServerSetup) { ServerSetupView(manager: liveActivity) }
-        #endif
         .onChange(of: liveActivity.connectionVersion) { _, _ in
             selectionVersion = UUID()
             serverSnapshot = nil

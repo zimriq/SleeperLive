@@ -1,4 +1,6 @@
-# Private iPhone server integration
+# Server integration — historical private-testing checkpoint
+
+**Current app flow:** the Railway service address is built in. Users enter a Sleeper username and choose a league; enabling background updates performs automatic App Attest device registration. No server URL or tester invitation is entered. The old manual setup entry point has been removed from Debug and Release navigation. The private-testing instructions below describe an earlier checkpoint, not the current user flow.
 
 This checkpoint connects SleeperLive to the existing Node server. It does not deploy a service, purchase hosting, or configure an Apple account.
 
