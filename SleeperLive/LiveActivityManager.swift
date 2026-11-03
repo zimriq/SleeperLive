@@ -89,6 +89,14 @@ final class LiveActivityManager: ObservableObject {
         } catch { message = error.localizedDescription; return false }
     }
 
+    func declineBackgroundUpdates() {
+        guard !isBusy, !isConnected, !disconnectPending else { return }
+        do {
+            try change { $0.declineBackgroundUpdates() }
+            message = "Background updates are off. You can enable them later in Settings."
+        } catch { message = error.localizedDescription }
+    }
+
     func resumeBackgroundUpdates() async {
         guard !isBusy, !disconnectPending else { return }
         guard !isSessionPaused else {

@@ -6,9 +6,9 @@ SleeperLive is an independent companion for viewing Sleeper fantasy football mat
 
 ## Real matchup and background updates
 
-1. On the first eligible launch, new installations see the in-app explanation Allow background matchup updates? before username lookup. Enable background updates starts App Attest device enrollment; Not now or dismissing the sheet leaves background registration off.
+1. On the first eligible launch, new installations see a compact native SwiftUI alert titled Allow background matchup updates? before username lookup. Allow starts App Attest device enrollment; Don’t Allow persists the opt-out and leaves background registration off. Details are available in Settings → Privacy & Help.
 2. On Matchup, enter a Sleeper username, select a league and load its current matchup.
-3. This is an in-app consent explanation, not an iOS permission dialog. The explanation is shown automatically only once. It does not repeat after logout, deletion, a prior opt-out, subsequent app launches or matchup refreshes. Existing connected users are not prompted again. Users may explicitly enable updates later from Settings or the matchup controls.
+3. This is an app-owned alert using native iOS styling, not an operating-system permission grant. The alert is shown automatically only once. It does not repeat after logout, deletion, a prior opt-out, subsequent app launches or matchup refreshes. Existing connected users are not prompted again. Users may explicitly enable updates later from Settings or the matchup controls.
 4. Once connected, start a Live Activity. The service must be reachable and production App Attest/push signing must be valid. Score delivery may be delayed. Proj. values are experimental estimates, not official Sleeper live projections.
 
 ## Sample without a Sleeper username

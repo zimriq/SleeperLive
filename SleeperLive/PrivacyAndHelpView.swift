@@ -44,6 +44,12 @@ struct PrivacyAndHelpView: View {
                     Text("Background updates register this device with the SleeperLive server using Apple App Attest. Matchup requests send the selected league, roster, and week. Live Activities also send an update token so the server can deliver scores through Apple’s push notification service. Device access credentials are stored in this device’s Keychain.")
                 }
 
+                Section("Background-update details") {
+                    Text("SleeperLive’s background-update service is hosted on Railway. Enabling it sends Apple App Attest verification information and a device access credential hash. The server keeps device and security identifiers to manage access and prevent abuse.")
+                    Text("Matchup requests include the selected league, roster, and week. Starting a Live Activity sends its update token and start time for delivery through Apple’s push notification service. Network services also process connection information such as your IP address.")
+                    Text("Declining leaves username lookup, manual refresh, and the sample available. Change your choice through Settings. This is SleeperLive’s registration preference; iOS separately controls Live Activity availability in system Settings.")
+                }
+
                 Section("Live Activities") {
                     LiveActivitySettingsView(showDisabledExplanation: !manager.liveActivitiesEnabled)
                     Text("Start a Live Activity from your matchup to follow scores on the Lock Screen. Use Stop Live Activity in the app to end it.")

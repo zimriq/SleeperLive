@@ -296,6 +296,19 @@ final class ServerIntegrationTests: XCTestCase {
         XCTAssertFalse(state.mayEnrollAutomatically)
     }
 
+    func testDontAllowPersistsAndCannotAutomaticallyEnroll() throws {
+        var state = IntegrationState()
+        state.declineBackgroundUpdates()
+        state = try JSONDecoder().decode(IntegrationState.self, from: JSONEncoder().encode(state))
+        XCTAssertFalse(state.mayEnrollAutomatically)
+        XCTAssertEqual(state.backgroundUpdatesDisabled, true)
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false,
+                                                               isConnected: false, hasOptedOut: state.backgroundUpdatesDisabled == true,
+                                                               needsConsent: state.backgroundUpdatesOptedIn != true))
+        state.enableBackgroundUpdates()
+        XCTAssertTrue(state.mayEnrollAutomatically)
+    }
+
     private var credentials: ServerCredentials {
         .init(baseURL: URL(string: "https://example.com")!, deviceId: "device-1", deviceToken: "test-device-token")
     }

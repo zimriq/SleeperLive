@@ -42,3 +42,7 @@ Confirm Matchup and Settings remain reachable, Change league returns to selectio
 ## Revised logout / prompt retest
 
 The current flow prompts once on first eligible launch, not after the first matchup. Not now, Done, and swipe dismissal must not repeat automatically. Existing registered devices correctly skip it. Logout must keep the device record (count stays 1), stop/clean up activities, and clear the username/matchup. Relaunch must remain logged out. Entering a valid username again reuses the same registration (count stays 1) and prior update choice. Delete SleeperLive data still removes the current record (count becomes 0). After deletion, another launch must not silently create one. Earlier revocation-based logout instructions in this file are superseded by this section.
+
+## Compact alert verification
+
+The first-launch choice is now a compact native alert, not a scrollable sheet. On a fresh eligible installation expect Allow background matchup updates? with Allow and Don’t Allow. The latter must leave registration off across relaunches. Open Settings → Enable background updates to see the alert again only on explicit request. Existing registered users correctly skip the automatic alert. Detailed data-flow text is in Settings → Privacy & Help. Simulator registration is unsupported; use the simulator for the alert’s appearance and the physical Dev app for enrollment.

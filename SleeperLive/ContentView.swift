@@ -494,8 +494,16 @@ struct ContentView: View {
             .tag(MainTab.settings)
         }
         .tint(accentColor)
-        .sheet(isPresented: $showBackgroundUpdatesConsent) {
-            BackgroundUpdatesConsentView(manager: liveActivity)
+        .alert("Allow background matchup updates?", isPresented: $showBackgroundUpdatesConsent) {
+            Button("Don’t Allow", role: .cancel) {
+                liveActivity.declineBackgroundUpdates()
+            }
+            Button("Allow") {
+                Task { await liveActivity.resumeBackgroundUpdates() }
+            }
+            .disabled(!liveActivity.canConnect || liveActivity.isSessionPaused)
+        } message: {
+            Text("Register this device to receive matchup updates on your Lock Screen. SleeperLive’s server stores device identifiers and your selected matchup. You can change your choice in Settings.")
         }
         .sheet(isPresented: $showSampleMatchup) {
             SampleMatchupView(manager: liveActivity)

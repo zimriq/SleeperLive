@@ -54,6 +54,11 @@ struct IntegrationState: Codable {
 
     mutating func resumeSession() { sessionPaused = false }
 
+    mutating func declineBackgroundUpdates() {
+        backgroundUpdatesOptedIn = false
+        backgroundUpdatesDisabled = true
+    }
+
     mutating func enableBackgroundUpdates() {
         backgroundUpdatesOptedIn = true
         backgroundUpdatesDisabled = false
