@@ -60,7 +60,7 @@ struct PrivacyAndHelpView: View {
                 }
 
                 Section("Your data") {
-                    Text("Use Settings to log out or delete this device’s SleeperLive data. Logging out disconnects this device and clears the saved matchup. Deleting data also removes its registration and activity records from the active server database. Neither action deletes your Sleeper account or other devices. Older backups and logs may remain.")
+                    Text("Use Settings to log out or delete this device’s SleeperLive data. Logging out stops Live Activities and clears the saved username and matchup while keeping this device’s registration for reuse on login. Deleting data also removes its registration and activity records from the active server database. Neither action deletes your Sleeper account or other devices. Older backups and logs may remain.")
                 }
 
                 Section("Support") {

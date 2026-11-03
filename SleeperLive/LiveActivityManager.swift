@@ -41,7 +41,8 @@ final class LiveActivityManager: ObservableObject {
 
     deinit { authorizationTask?.cancel() }
 
-    var isConnected: Bool { saved.credentials != nil && saved.disconnectRequested != true }
+    var isSessionPaused: Bool { saved.sessionPaused == true }
+    var isConnected: Bool { saved.credentials != nil && saved.disconnectRequested != true && !isSessionPaused }
     var backgroundUpdatesDisabled: Bool { saved.backgroundUpdatesDisabled == true }
     var needsBackgroundUpdatesConsent: Bool { saved.backgroundUpdatesOptedIn != true }
     var deviceDataDeletionPending: Bool { disconnectPending && saved.deleteDeviceDataRequested == true }
@@ -90,9 +91,47 @@ final class LiveActivityManager: ObservableObject {
 
     func resumeBackgroundUpdates() async {
         guard !isBusy, !disconnectPending else { return }
+        guard !isSessionPaused else {
+            message = "Enter a Sleeper username on Matchup to resume this device’s saved registration."
+            return
+        }
         do { try change { $0.enableBackgroundUpdates() } }
         catch { message = error.localizedDescription; return }
         await connectAutomatically()
+    }
+
+    func logOut() async -> Bool {
+        guard storageReady, !isBusy, !disconnectPending else { return false }
+        await stop()
+        guard !hasActivity else { return false }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try change { $0.pauseSession() }
+            connectionVersion = UUID()
+            stateTask?.cancel(); tokenTask?.cancel(); tokenTimeoutTask?.cancel()
+            for current in Activity<MatchupActivityAttributes>.activities {
+                await current.end(nil, dismissalPolicy: .immediate)
+            }
+            activity = nil
+            sync()
+            message = pendingCleanup > 0
+                ? "Logged out. Finishing Live Activity cleanup; device registration is kept."
+                : "Logged out. Device registration is kept for your next login."
+            return true
+        } catch { message = error.localizedDescription; return false }
+    }
+
+    func resumeSessionAfterLogin() async -> Bool {
+        guard isSessionPaused else { return true }
+        guard !isBusy, !disconnectPending else { return false }
+        do {
+            try change { $0.resumeSession() }
+            message = "Saved device access resumed."
+            connectionVersion = UUID()
+            await connectAutomatically()
+            return true
+        } catch { message = error.localizedDescription; return false }
     }
 
     // Save the opt-out before networking so relaunch never silently reenrolls.
@@ -178,7 +217,7 @@ final class LiveActivityManager: ObservableObject {
     }
 
     func snapshot(_ selection: MatchupSelection) async throws -> ServerSnapshot {
-        guard let client else { throw ServerError(status: 401, retryAfter: nil, errorDescription: "Connect your server first.") }
+        guard isConnected, let client else { throw ServerError(status: 401, retryAfter: nil, errorDescription: "Log in and enable background updates before using the server.") }
         let wait = nextSnapshotAttempt - Date().timeIntervalSince1970
         guard wait <= 0 else {
             throw ServerError(status: 429, retryAfter: wait, errorDescription: "Please wait before refreshing again.")
@@ -240,7 +279,7 @@ final class LiveActivityManager: ObservableObject {
     func startRemote(_ selection: MatchupSelection) async -> ServerSnapshot? {
         guard !isBusy else { return nil }
         restore()
-        guard canStart(), saved.records.isEmpty, let client else {
+        guard isConnected, canStart(), saved.records.isEmpty, let client else {
             if !saved.records.isEmpty { message = "Finishing cleanup of the previous activity. Please wait." }
             return nil
         }

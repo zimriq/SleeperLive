@@ -253,22 +253,47 @@ final class ServerIntegrationTests: XCTestCase {
         #endif
     }
 
-    func testBackgroundPromptRequiresFirstSuccessfulMatchupAndExplicitConsent() {
-        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: false,
-                                                               isConnected: false, hasOptedOut: false, needsConsent: true))
-        XCTAssertTrue(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+    func testBackgroundPromptOffersOnFirstLaunchWithoutWaitingForAMatchup() {
+        XCTAssertTrue(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false,
                                                               isConnected: false, hasOptedOut: false, needsConsent: true))
     }
 
-    func testBackgroundPromptDoesNotRepeatAfterNotNowLogoutOrExistingConsent() {
-        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: true, hasLoadedMatchup: true,
+    func testBackgroundPromptDoesNotRepeatAfterNotNowOrExistingConsent() {
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: true,
                                                                isConnected: false, hasOptedOut: false, needsConsent: true))
-        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false,
                                                                isConnected: false, hasOptedOut: true, needsConsent: true))
-        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false,
                                                                isConnected: true, hasOptedOut: false, needsConsent: false))
-        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false,
                                                                isConnected: false, hasOptedOut: false, needsConsent: false))
+    }
+
+    func testLogoutRetainsRegistrationAndConsentButPausesAcrossRelaunch() throws {
+        var state = IntegrationState(credentials: credentials, records: [makeRecord()])
+        state.enableBackgroundUpdates()
+        state.pauseSession()
+        state = try JSONDecoder().decode(IntegrationState.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(state.credentials?.deviceToken, credentials.deviceToken)
+        XCTAssertEqual(state.backgroundUpdatesOptedIn, true)
+        XCTAssertEqual(state.sessionPaused, true)
+        XCTAssertEqual(state.records.first?.ending, true)
+        XCTAssertFalse(state.mayEnrollAutomatically)
+        state.resumeSession()
+        XCTAssertEqual(state.records.first?.ending, true)
+        XCTAssertTrue(state.mayEnrollAutomatically)
+        XCTAssertEqual(state.credentials?.deviceToken, credentials.deviceToken)
+    }
+
+    func testDeletingPausedRegistrationClearsAccessAndDoesNotAutoEnroll() {
+        var state = IntegrationState(credentials: credentials)
+        state.enableBackgroundUpdates()
+        state.pauseSession()
+        state.beginDisconnection(deleteData: true)
+        state.finishDisconnection()
+        XCTAssertNil(state.credentials)
+        XCTAssertEqual(state.sessionPaused, false)
+        XCTAssertFalse(state.mayEnrollAutomatically)
     }
 
     private var credentials: ServerCredentials {

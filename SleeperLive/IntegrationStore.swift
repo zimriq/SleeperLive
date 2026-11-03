@@ -37,10 +37,22 @@ struct IntegrationState: Codable {
     var disconnectRequested: Bool?
     var backgroundUpdatesOptedIn: Bool?
     var deleteDeviceDataRequested: Bool?
+    var sessionPaused: Bool?
 
     var mayEnrollAutomatically: Bool {
-        backgroundUpdatesOptedIn == true && backgroundUpdatesDisabled != true && disconnectRequested != true
+        backgroundUpdatesOptedIn == true && backgroundUpdatesDisabled != true && disconnectRequested != true && sessionPaused != true
     }
+
+    mutating func pauseSession() {
+        // Logout does not revoke the device or forget an existing consent choice.
+        sessionPaused = true
+        for index in records.indices {
+            records[index].ending = true
+            records[index].nextAttempt = 0
+        }
+    }
+
+    mutating func resumeSession() { sessionPaused = false }
 
     mutating func enableBackgroundUpdates() {
         backgroundUpdatesOptedIn = true
@@ -61,6 +73,7 @@ struct IntegrationState: Codable {
         records = []
         disconnectRequested = false
         deleteDeviceDataRequested = false
+        sessionPaused = false
         backgroundUpdatesDisabled = true
     }
 

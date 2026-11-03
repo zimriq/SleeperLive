@@ -12,6 +12,10 @@ struct DeviceRegistrationStatusView: View {
                       systemImage: "clock")
                 Text("The server request is unfinished. Use the retry control when connected.")
                     .font(.footnote).foregroundStyle(.secondary)
+            } else if manager.isSessionPaused {
+                Label("Logged out · Device registration kept", systemImage: "pause.circle")
+                Text("Your saved background-update choice can resume when you log in again.")
+                    .font(.footnote).foregroundStyle(.secondary)
             } else if manager.isConnected {
                 Label("Device registration saved", systemImage: "checkmark.shield")
                 if manager.serverMode == "dry-run" {

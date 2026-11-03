@@ -64,7 +64,6 @@ struct ContentView: View {
     @StateObject private var liveActivity = LiveActivityManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = MainTab.matchup
-    @State private var hasLoadedMatchupThisSession = false
     @AppStorage("hasSeenBackgroundUpdatesPrompt") private var hasSeenBackgroundUpdatesPrompt = false
     @State private var scoreUpdatedAt: Int?
     @State private var showPrivacyAndHelp = false
@@ -157,6 +156,8 @@ struct ContentView: View {
                     Button(liveActivity.deviceDataDeletionPending ? "Retry device data deletion" : "Retry device disconnection") {
                         Task { _ = await liveActivity.disconnectDevice() }
                     }
+                } else if liveActivity.isSessionPaused {
+                    Text("Logged out. Your device registration is kept for your next login.")
                 } else if liveActivity.backgroundUpdatesDisabled || liveActivity.needsBackgroundUpdatesConsent {
                     Text("Background updates are off.")
                     Button("Enable background updates") {
@@ -417,7 +418,7 @@ struct ContentView: View {
     var findAccountButton: some View {
         Button {
             guard !isLoading, !liveActivity.isBusy else { return }
-            Task { await findUser() }
+            Task { await findUser(resumePausedSession: true) }
         } label: {
             Text("Find my account")
                 .font(.headline)
@@ -465,12 +466,11 @@ struct ContentView: View {
     private var shouldOfferBackgroundUpdates: Bool {
         BackgroundUpdatesPromptPolicy.shouldOffer(
             hasSeenPrompt: hasSeenBackgroundUpdatesPrompt,
-            hasLoadedMatchup: hasLoadedMatchupThisSession && displaysDashboard && yourScore != nil && opponentScore != nil,
             isConnected: liveActivity.isConnected,
             hasOptedOut: liveActivity.backgroundUpdatesDisabled,
             needsConsent: liveActivity.needsBackgroundUpdatesConsent
         ) && !isLoading && !liveActivity.isBusy && !liveActivity.disconnectPending
-          && !rememberedUsername.isEmpty && selectedTab == .matchup && scenePhase == .active
+          && !liveActivity.isSessionPaused && selectedTab == .matchup && scenePhase == .active
           && !showSampleMatchup && !showPrivacyAndHelp && !showBackgroundUpdatesConsent
     }
 
@@ -503,12 +503,16 @@ struct ContentView: View {
         .sheet(isPresented: $showPrivacyAndHelp) {
             PrivacyAndHelpView(manager: liveActivity)
         }
-        .onChange(of: shouldOfferBackgroundUpdates) { _, shouldOffer in
+        .onChange(of: shouldOfferBackgroundUpdates, initial: true) { _, shouldOffer in
             if shouldOffer { presentBackgroundUpdatesConsent() }
         }
         .task {
             guard !didRestoreAccount else { return }
             didRestoreAccount = true
+            if liveActivity.isSessionPaused {
+                clearSavedSelection()
+                return
+            }
             guard !rememberedUsername.isEmpty else { return }
             username = rememberedUsername
             if let saved = try? JSONDecoder().decode(SavedDashboard.self, from: dashboardData),
@@ -605,7 +609,7 @@ struct ContentView: View {
     }
 
     // User lookup and loading leagues tied to it
-    func findUser() async {
+    func findUser(resumePausedSession: Bool = false) async {
         selectionVersion = UUID()
         serverSnapshot = nil
         scoreUpdatedAt = nil
@@ -655,6 +659,12 @@ struct ContentView: View {
             )
 
             if let user {
+                if resumePausedSession {
+                    guard await liveActivity.resumeSessionAfterLogin() else {
+                        lookupMessage = liveActivity.message.isEmpty ? "Couldn’t resume device access. Please try again." : liveActivity.message
+                        return
+                    }
+                }
                 if rememberedUsername.caseInsensitiveCompare(cleanUsername) != .orderedSame {
                     rememberedLeagueID = ""
                 }
@@ -795,7 +805,6 @@ struct ContentView: View {
                     applySnapshot(result)
                 }
                 lookupMessage = "Matchup loaded."
-                hasLoadedMatchupThisSession = true
                 saveDashboard()
                 if navigate {
                     rememberedLeagueID = league.league_id
@@ -855,7 +864,6 @@ struct ContentView: View {
                 lookupMessage = "Scores are unavailable. Please try again."
                 return
             }
-            hasLoadedMatchupThisSession = true
             yourScore = ownPoints
             opponentScore = otherPoints
             scoreUpdatedAt = Int(Date().timeIntervalSince1970)
@@ -941,8 +949,13 @@ struct ContentView: View {
         showBackgroundUpdatesConsent = false
         isLoading = true
         defer { isLoading = false }
-        let completed = await liveActivity.disconnectDevice(deleteData: deleteData)
-        // Do not pretend logout succeeded if secure opt-out could not be persisted.
+        let completed: Bool
+        if deleteData || liveActivity.disconnectPending {
+            completed = await liveActivity.disconnectDevice(deleteData: deleteData)
+        } else {
+            completed = await liveActivity.logOut()
+        }
+        // Do not pretend logout succeeded if the paused session could not be saved.
         if completed || liveActivity.disconnectPending || liveActivity.backgroundUpdatesDisabled {
             clearSavedSelection()
             selectedTab = .matchup
@@ -950,7 +963,6 @@ struct ContentView: View {
     }
 
     private func clearSavedSelection() {
-        hasLoadedMatchupThisSession = false
         selectionVersion = UUID()
         rememberedUsername = ""
         rememberedLeagueID = ""

@@ -1,7 +1,7 @@
-// Automatic presentation is a one-time invitation, never an enrollment action.
+// First-launch invitation only. Choosing or dismissing it is persisted by the view.
 enum BackgroundUpdatesPromptPolicy {
-    static func shouldOffer(hasSeenPrompt: Bool, hasLoadedMatchup: Bool,
-                            isConnected: Bool, hasOptedOut: Bool, needsConsent: Bool) -> Bool {
-        !hasSeenPrompt && hasLoadedMatchup && !isConnected && !hasOptedOut && needsConsent
+    static func shouldOffer(hasSeenPrompt: Bool, isConnected: Bool,
+                            hasOptedOut: Bool, needsConsent: Bool) -> Bool {
+        !hasSeenPrompt && !isConnected && !hasOptedOut && needsConsent
     }
 }

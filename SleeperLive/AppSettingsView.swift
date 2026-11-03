@@ -34,10 +34,13 @@ struct AppSettingsView: View {
             Section("Background updates") {
                 DeviceRegistrationStatusView(manager: manager)
                 if manager.disconnectPending {
-                    Button(manager.deviceDataDeletionPending ? "Retry data deletion" : "Retry logout") {
+                    Button(manager.deviceDataDeletionPending ? "Retry data deletion" : "Retry previous disconnection") {
                         Task { await onEndSession(manager.deviceDataDeletionPending) }
                     }
                     .disabled(busy)
+                } else if manager.isSessionPaused {
+                    Text("Enter a Sleeper username on Matchup to reuse this device’s registration.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 } else if !manager.isConnected {
                     Button("Enable background updates", action: onEnableUpdates)
                         .disabled(busy)
@@ -66,7 +69,7 @@ struct AppSettingsView: View {
                     deleting = false
                     showSessionConfirmation = true
                 }
-                .disabled(busy || !hasSession || manager.disconnectPending)
+                .disabled(busy || (username.isEmpty && !manager.hasActivity) || manager.disconnectPending)
                 Button("Delete SleeperLive data", role: .destructive) {
                     deleting = true
                     showSessionConfirmation = true
@@ -75,7 +78,7 @@ struct AppSettingsView: View {
             } header: {
                 Text("Session & data")
             } footer: {
-                Text("Log out disconnects this device and clears its saved matchup. Delete SleeperLive data also removes the current device registration and activity records from the active server database. Neither action deletes your Sleeper account or other devices. Previously disconnected registrations, backups, and logs may remain.")
+                Text("Log out stops Live Activities and clears the saved username and matchup, keeping this device’s registration and background-update choice for your next login. Delete SleeperLive data removes its current registration and activity records from the active server database and clears the saved matchup. Neither action deletes your Sleeper account or other devices. Previously disconnected registrations, backups, and logs may remain.")
             }
         }
         .navigationTitle("Settings")
@@ -87,7 +90,7 @@ struct AppSettingsView: View {
         } message: {
             Text(deleting
                 ? "Your Live Activities will stop, the saved matchup will be cleared, and this device’s current server registration and activity records will be deleted. Deletion cannot be undone. Older backups and logs may remain. Your Sleeper account is unaffected."
-                : "Your Live Activities will stop, this device will disconnect, and the saved username and matchup will be cleared. Background updates stay off until you enable them again. Your Sleeper account is unaffected.")
+                : "Your Live Activities will stop and the saved username and matchup will be cleared. This device’s registration and previous background-update choice are kept and can resume when you log in again. Your Sleeper account is unaffected.")
         }
     }
 }

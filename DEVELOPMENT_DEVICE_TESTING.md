@@ -38,3 +38,7 @@ The user confirmed the deployed develop revision. The public development health 
 ## Retest the Settings redesign
 
 Confirm Matchup and Settings remain reachable, Change league returns to selection, Privacy & Help opens from Settings, and both destructive actions require confirmation. Verify Log out leaves updates off after relaunch, including after selecting a username again; verify deletion/retry preserves the deletion intent. A genuinely new eligible installation should see the explanation only after a successful real matchup loads. Not now, dismissal and subsequent refreshes must not cause repeat prompts. Existing connected or previously opted-out installations should use Settings to enable manually and may correctly never see an automatic prompt.
+
+## Revised logout / prompt retest
+
+The current flow prompts once on first eligible launch, not after the first matchup. Not now, Done, and swipe dismissal must not repeat automatically. Existing registered devices correctly skip it. Logout must keep the device record (count stays 1), stop/clean up activities, and clear the username/matchup. Relaunch must remain logged out. Entering a valid username again reuses the same registration (count stays 1) and prior update choice. Delete SleeperLive data still removes the current record (count becomes 0). After deletion, another launch must not silently create one. Earlier revocation-based logout instructions in this file are superseded by this section.
