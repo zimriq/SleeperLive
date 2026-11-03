@@ -8,7 +8,7 @@ struct BackgroundUpdatesConsentView: View {
         NavigationStack {
             List {
                 Section {
-                    Label("Follow scores while the app is closed", systemImage: "lock.rectangle")
+                    Label("Follow this matchup on your Lock Screen?", systemImage: "lock.rectangle")
                         .font(.headline)
                     Text("Background updates connect this device to the SleeperLive service hosted on Railway. You can keep using username lookup, manual score refreshes, and the sample matchup without enabling them.")
                 }
@@ -18,7 +18,7 @@ struct BackgroundUpdatesConsentView: View {
                     Text("Network services process connection information, including your IP address. No Sleeper password is requested.")
                 }
                 Section("Your choice") {
-                    Text("You can disconnect this device in Privacy & Help. That revokes access and clears the saved matchup; server security records, logs, and backups may remain. Disconnecting is not full data deletion.")
+                    Text("You can log out from Settings to disconnect this device and clear its saved matchup. Server security records, logs, and backups may remain. Logging out is not full data deletion.")
                     Button("Enable background updates") {
                         Task {
                             await manager.resumeBackgroundUpdates()
@@ -26,7 +26,7 @@ struct BackgroundUpdatesConsentView: View {
                         }
                     }
                     .disabled(!manager.canConnect)
-                    Button("Continue without background updates") { dismiss() }
+                    Button("Not now") { dismiss() }
                         .disabled(manager.isBusy)
                     if manager.hasActivity {
                         Text("Stop the current Live Activity before enabling background updates.")

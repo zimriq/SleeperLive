@@ -1,29 +1,27 @@
 # App Review notes
 
-Suggested App Store Connect review notes. Confirm all production claims on a signed physical iPhone before submission.
+Suggested review instructions. Confirm production claims on a signed physical iPhone before submission.
 
-SleeperLive is an independent companion for viewing Sleeper fantasy football matchups on the iPhone Lock Screen and Dynamic Island. It looks up a public Sleeper username without asking for a password. Real background updates use a hosted service, Apple App Attest device registration, and Apple push notifications.
+SleeperLive is an independent companion for viewing Sleeper fantasy football matchups on the Lock Screen and Dynamic Island. It looks up a public Sleeper username without requesting a password. The Matchup and Settings tabs remain available before and after username lookup.
 
-## Sample mode — available without a Sleeper username
+## Real matchup and background updates
 
-1. From the welcome screen, tap **Try a sample matchup**. From any main screen, the question-mark **Help & Preview** menu also offers it.
-2. The sample displays fictional teams, **Sample Home** and **Sample Away**, with fixed sample scores. It is explicitly labeled and is available outside NFL games and without a Sleeper account.
-3. Tap **Start sample Live Activity**, then lock the iPhone to inspect the Lock Screen. Dynamic Island presentation is available on supported devices. Live Activities must be allowed in iPhone Settings.
-4. Reopen the sample and tap **Simulate score update** to change Sample Home's score. This is a manual local update, not a real game or background push. **Reset sample scores** reverses it.
-5. Tap **Stop sample Live Activity** before starting a real matchup. Closing the sample screen does not stop an activity already started. Samples never replace an existing real activity.
+1. On Matchup, enter a Sleeper username, select a league and load its current matchup.
+2. After the first successful matchup load, eligible new installations see an in-app explanation: Follow this matchup on your Lock Screen? Enable background updates starts App Attest device enrollment; Not now or dismissing the sheet leaves background registration off.
+3. This is an in-app consent explanation, not an iOS permission dialog. The explanation is shown automatically only once. It does not repeat after logout, deletion, a prior opt-out, a sample matchup, or a cached-only load. Existing connected users are not prompted again. Users may explicitly enable updates later from Settings or the matchup controls.
+4. Once connected, start a Live Activity. The service must be reachable and production App Attest/push signing must be valid. Score delivery may be delayed. Proj. values are experimental estimates, not official Sleeper live projections.
 
-The sample's league label is Sample matchup, and the Live Activity is labeled Preview. Sample selections and scores are not registered with the background service. On new installs, real device enrollment starts only after the user opens Enable background updates, reads the data-use explanation, and taps Enable background updates. Previously connected installations retain their existing access. The simulator cannot complete the real App Attest/push enrollment flow; local sample activities do not require it.
+## Sample without a Sleeper username
 
-## Real matchup flow
+Tap Try a sample matchup on the welcome screen or in Settings. Sample Home and Sample Away are fictional, labeled sample data. Start sample Live Activity and lock the phone to inspect the preview; Simulate score update changes the sample locally and Reset sample scores reverses it. Stop the sample before starting a real activity. Closing its sheet does not stop the activity. No sample scores are registered with the server. The simulator cannot verify real App Attest/push enrollment, but local sample presentation remains available.
 
-Enter a public Sleeper username, select a league with a current assigned matchup, and load it. Choose Enable background updates and confirm the explanation. Once the device connects, start the Live Activity. Manual score lookup remains available without background enrollment. The hosted service must be reachable and production signing/push configuration must be valid. Sample mode demonstrates presentation and manual local updates; it does not substitute for testing real server updates.
+## Settings, logout, and deletion
 
-Review submission still needs a verified review username/league if necessary, the published privacy-policy link, final privacy disclosures, and production-device validation. Do not include passwords, access credentials, or push tokens in review notes.
+Settings shows the current username/league, Change league, background-registration status and retry/enable controls, system Settings shortcut, Privacy & Help, and the sample.
 
-## Privacy and device controls
+- Log out requires confirmation, stops local activities, revokes device access, clears the saved username/matchup, and leaves updates off. If offline, secure cleanup credentials are retained for retry and the user returns to the welcome screen. If secure opt-out cannot be persisted, the app does not pretend logout completed.
+- Delete SleeperLive data separately confirms removal of the current device registration and activity records from the active server database, plus local matchup cleanup. Neither action deletes the external Sleeper account or other devices. Historical backups/logs and previously disconnected registrations may remain. The matching server deletion endpoint must be deployed first.
+- Pending logout or deletion can be retried in Settings or the welcome screen. A retry preserves a pending deletion instead of silently downgrading it to revocation.
+- Privacy & Help contains privacy information, public support contact/link and troubleshooting; device actions are now directly in Settings.
 
-Open the question-mark menu and choose **Privacy & Help** for the support website, contact email, and device-disconnection control. Disconnection clears the local selection and revokes this device's access, with retry if offline. It is not complete erasure of retained server security records or backups.
-
-## Device-data deletion
-
-Privacy & Help offers **Delete device data** separately from disconnection. After confirmation, the app clears its saved matchup, ends local Live Activities, and requests deletion of the current device registration and owned activity records from the active database. It retains secure retry credentials until the server confirms success, then clears them and leaves background updates off. Historical database copies, logs, and backups are not erased by this action. Deploy the matching server endpoint before submitting this app build; complete production-device and retention verification first.
+The privacy-policy URL, final privacy answers, actual review account/league if needed, production-device validation and screenshots remain submission prerequisites. Never put passwords, bearer credentials or push tokens in review notes.

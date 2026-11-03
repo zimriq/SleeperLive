@@ -13,7 +13,7 @@ TRY IT BEFORE CONNECTING
 Explore a clearly labeled sample matchup without entering a username. Start a local preview Live Activity and simulate a score update to see how it works. Sample scores are fictional and do not receive live game updates.
 
 CONTROL DEVICE ACCESS
-Use Privacy & Help to contact support, disconnect your device, or request deletion of its registration and activity records from the active server database. Historical database copies, logs, and backups may remain; consult the privacy policy for retention details.
+Open Settings to find Privacy & Help, log out, or request deletion of this device’s registration and activity records from the active server database. Historical database copies, logs, and backups may remain; consult the privacy policy for retention details.
 
 Live Activities must be enabled in system Settings. Score delivery depends on network conditions, iOS, and service availability; updates may be delayed. Real matchups require an available Sleeper fantasy football league and an assigned matchup for the current week.
 

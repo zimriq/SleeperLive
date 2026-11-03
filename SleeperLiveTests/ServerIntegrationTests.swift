@@ -253,6 +253,24 @@ final class ServerIntegrationTests: XCTestCase {
         #endif
     }
 
+    func testBackgroundPromptRequiresFirstSuccessfulMatchupAndExplicitConsent() {
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: false,
+                                                               isConnected: false, hasOptedOut: false, needsConsent: true))
+        XCTAssertTrue(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+                                                              isConnected: false, hasOptedOut: false, needsConsent: true))
+    }
+
+    func testBackgroundPromptDoesNotRepeatAfterNotNowLogoutOrExistingConsent() {
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: true, hasLoadedMatchup: true,
+                                                               isConnected: false, hasOptedOut: false, needsConsent: true))
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+                                                               isConnected: false, hasOptedOut: true, needsConsent: true))
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+                                                               isConnected: true, hasOptedOut: false, needsConsent: false))
+        XCTAssertFalse(BackgroundUpdatesPromptPolicy.shouldOffer(hasSeenPrompt: false, hasLoadedMatchup: true,
+                                                               isConnected: false, hasOptedOut: false, needsConsent: false))
+    }
+
     private var credentials: ServerCredentials {
         .init(baseURL: URL(string: "https://example.com")!, deviceId: "device-1", deviceToken: "test-device-token")
     }

@@ -52,3 +52,9 @@ With normal signing-tool access, signature verification passed. This local archi
 ## Isolated development device build
 
 SleeperLive Dev uses the Develop configuration, com.zimri.SleeperLive.Develop app identity, a matching isolated widget identity, separate app/Keychain storage, and the built-in development Railway URL. Normal Debug and Release configurations still target production. DEVELOPMENT_DEVICE_TESTING.md lists the required development-only server bundle ID, signing steps, and dry-run limitations. Do not submit the Dev scheme. Production behavior and signing are not validated merely by the Dev build.
+
+## Matchup / Settings navigation and automatic explanation
+
+Added bottom Matchup and Settings tabs, keeping privacy/support available before lookup. Settings now owns current account/league information, Change league, background status/enable/retry, system settings, sample, Privacy & Help, confirmed Log out, and confirmed Delete SleeperLive data. Logout uses durable device revocation plus local selection cleanup; deletion keeps its distinct active-database endpoint and wording. The old account/help menus and duplicate destructive actions in Privacy & Help were removed.
+
+A persisted one-time prompt is offered only after a successful real matchup load, while active/on Matchup with no other sheet or operation in progress. Not now and swipe dismissal count as having seen it. Existing consent, connection, prior opt-out, logout/deletion and sample/cached-only data suppress automatic presentation. Manual enabling remains available. Retest the changed navigation and confirmations on the Dev app before production; previous server endpoint tests do not certify the new UI.

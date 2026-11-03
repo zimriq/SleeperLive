@@ -58,9 +58,14 @@ private struct SavedDashboard: Codable {
     let updatedAt: Int
 }
 
+private enum MainTab: Hashable { case matchup, settings }
+
 struct ContentView: View {
     @StateObject private var liveActivity = LiveActivityManager()
     @Environment(\.scenePhase) private var scenePhase
+    @State private var selectedTab = MainTab.matchup
+    @State private var hasLoadedMatchupThisSession = false
+    @AppStorage("hasSeenBackgroundUpdatesPrompt") private var hasSeenBackgroundUpdatesPrompt = false
     @State private var scoreUpdatedAt: Int?
     @State private var showPrivacyAndHelp = false
     @State private var showSampleMatchup = false
@@ -155,7 +160,7 @@ struct ContentView: View {
                 } else if liveActivity.backgroundUpdatesDisabled || liveActivity.needsBackgroundUpdatesConsent {
                     Text("Background updates are off.")
                     Button("Enable background updates") {
-                        showBackgroundUpdatesConsent = true
+                        presentBackgroundUpdatesConsent()
                     }
                 } else {
                     Button("Retry background connection") {
@@ -425,7 +430,7 @@ struct ContentView: View {
         .buttonBorderShape(.roundedRectangle(radius: 16))
     }
 
-    var body: some View {
+    private var matchupScreen: some View {
         NavigationStack {
             ScrollView {
                 if displaysDashboard {
@@ -445,6 +450,7 @@ struct ContentView: View {
             }
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(displaysDashboard ? "Matchup" : "SleeperLive")
             .toolbar {
                 #if SLEEPERLIVE_DEVELOP
                 ToolbarItem(placement: .principal) {
@@ -452,45 +458,40 @@ struct ContentView: View {
                         .accessibilityLabel("Development build, test server")
                 }
                 #endif
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Button("Privacy & Help", systemImage: "questionmark.circle") { showPrivacyAndHelp = true }
-                        Button("Try a sample matchup", systemImage: "testtube.2") { showSampleMatchup = true }
-                            .disabled(isLoading || liveActivity.isBusy)
-                    } label: {
-                        Label("Help & Preview", systemImage: "questionmark.circle")
-                    }
-                }
-                if !rememberedUsername.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            if displaysDashboard {
-                                Button("Change league") {
-                                    Task {
-                                        isLoading = true
-                                        await liveActivity.stop()
-                                        guard !liveActivity.hasActivity else { isLoading = false; return }
-                                        choosingLeague = true
-                                        showMatchup = false
-                                        if let sleeperUser { await findLeagues(for: sleeperUser.user_id) }
-                                        isLoading = false
-                                    }
-                                }
-                            }
-                            Button("Change username") {
-                                Task {
-                                    isLoading = true
-                                    await liveActivity.stop()
-                                    guard !liveActivity.hasActivity else { isLoading = false; return }
-                                    clearSavedSelection()
-                                    isLoading = false
-                                }
-                            }
-                        } label: { Label("Account", systemImage: "person.crop.circle") }
-                        .disabled(isLoading || liveActivity.isBusy)
-                    }
-                }
             }
+        }
+    }
+
+    private var shouldOfferBackgroundUpdates: Bool {
+        BackgroundUpdatesPromptPolicy.shouldOffer(
+            hasSeenPrompt: hasSeenBackgroundUpdatesPrompt,
+            hasLoadedMatchup: hasLoadedMatchupThisSession && displaysDashboard && yourScore != nil && opponentScore != nil,
+            isConnected: liveActivity.isConnected,
+            hasOptedOut: liveActivity.backgroundUpdatesDisabled,
+            needsConsent: liveActivity.needsBackgroundUpdatesConsent
+        ) && !isLoading && !liveActivity.isBusy && !liveActivity.disconnectPending
+          && !rememberedUsername.isEmpty && selectedTab == .matchup && scenePhase == .active
+          && !showSampleMatchup && !showPrivacyAndHelp && !showBackgroundUpdatesConsent
+    }
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            matchupScreen
+                .tabItem { Label("Matchup", systemImage: "sportscourt") }
+                .tag(MainTab.matchup)
+            NavigationStack {
+                AppSettingsView(
+                    manager: liveActivity, username: rememberedUsername,
+                    leagueName: selectedLeague?.name, isLoading: isLoading,
+                    onChangeLeague: { await changeLeague() },
+                    onEnableUpdates: presentBackgroundUpdatesConsent,
+                    onPrivacyAndHelp: { showPrivacyAndHelp = true },
+                    onSample: { showSampleMatchup = true },
+                    onEndSession: { deleting in await endSession(deleteData: deleting) }
+                )
+            }
+            .tabItem { Label("Settings", systemImage: "gearshape") }
+            .tag(MainTab.settings)
         }
         .tint(accentColor)
         .sheet(isPresented: $showBackgroundUpdatesConsent) {
@@ -500,8 +501,10 @@ struct ContentView: View {
             SampleMatchupView(manager: liveActivity)
         }
         .sheet(isPresented: $showPrivacyAndHelp) {
-            PrivacyAndHelpView(manager: liveActivity, canDisconnect: !isLoading,
-                               clearSavedSelection: clearSavedSelection)
+            PrivacyAndHelpView(manager: liveActivity)
+        }
+        .onChange(of: shouldOfferBackgroundUpdates) { _, shouldOffer in
+            if shouldOffer { presentBackgroundUpdatesConsent() }
         }
         .task {
             guard !didRestoreAccount else { return }
@@ -792,6 +795,7 @@ struct ContentView: View {
                     applySnapshot(result)
                 }
                 lookupMessage = "Matchup loaded."
+                hasLoadedMatchupThisSession = true
                 saveDashboard()
                 if navigate {
                     rememberedLeagueID = league.league_id
@@ -851,6 +855,7 @@ struct ContentView: View {
                 lookupMessage = "Scores are unavailable. Please try again."
                 return
             }
+            hasLoadedMatchupThisSession = true
             yourScore = ownPoints
             opponentScore = otherPoints
             scoreUpdatedAt = Int(Date().timeIntervalSince1970)
@@ -911,7 +916,41 @@ struct ContentView: View {
         }
     }
     
+    private func presentBackgroundUpdatesConsent() {
+        // Mark before presentation: Not now and swipe dismissal both remain respected.
+        hasSeenBackgroundUpdatesPrompt = true
+        showBackgroundUpdatesConsent = true
+    }
+
+    private func changeLeague() async {
+        guard !isLoading, !liveActivity.isBusy else { return }
+        isLoading = true
+        defer { isLoading = false }
+        await liveActivity.stop()
+        guard !liveActivity.hasActivity else { return }
+        choosingLeague = true
+        showMatchup = false
+        selectedTab = .matchup
+        if let sleeperUser { await findLeagues(for: sleeperUser.user_id) }
+        else { await findUser() }
+    }
+
+    private func endSession(deleteData: Bool) async {
+        guard !isLoading, !liveActivity.isBusy else { return }
+        hasSeenBackgroundUpdatesPrompt = true
+        showBackgroundUpdatesConsent = false
+        isLoading = true
+        defer { isLoading = false }
+        let completed = await liveActivity.disconnectDevice(deleteData: deleteData)
+        // Do not pretend logout succeeded if secure opt-out could not be persisted.
+        if completed || liveActivity.disconnectPending || liveActivity.backgroundUpdatesDisabled {
+            clearSavedSelection()
+            selectedTab = .matchup
+        }
+    }
+
     private func clearSavedSelection() {
+        hasLoadedMatchupThisSession = false
         selectionVersion = UUID()
         rememberedUsername = ""
         rememberedLeagueID = ""

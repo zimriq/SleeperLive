@@ -46,6 +46,7 @@ final class LiveActivityManager: ObservableObject {
     var needsBackgroundUpdatesConsent: Bool { saved.backgroundUpdatesOptedIn != true }
     var deviceDataDeletionPending: Bool { disconnectPending && saved.deleteDeviceDataRequested == true }
     var disconnectPending: Bool { saved.disconnectRequested == true }
+    var hasSavedDeviceAccess: Bool { saved.credentials != nil || saved.pendingEnrollment != nil }
     var hasActivity: Bool { activity != nil }
     var canConnect: Bool { storageReady && !isBusy && !hasActivity && saved.records.isEmpty && !disconnectPending }
     private var client: ServerClient? { saved.credentials.map { ServerClient(credentials: $0) } }
