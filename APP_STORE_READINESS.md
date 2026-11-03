@@ -38,3 +38,7 @@ Push/deploy the server update before using the new app deletion action. Verify o
 ## Live Activity settings recovery
 
 The app observes ActivityKit authorization changes, rechecks on return to the foreground, disables Start while Live Activities are unavailable, and offers Open iPhone Settings from the matchup, sample, and Privacy & Help screens. The public UIApplication settings URL is used; no private settings deep links or notification permission prompts are introduced. If Settings cannot open, manual navigation guidance is shown. Verify disable/enable and return-to-app behavior on a physical iPhone; this does not prove production push delivery.
+
+## Submission checks and server handoff
+
+Run `python3 scripts/check_release.py` for offline source checks, or add `--archive /path/to/SleeperLive.xcarchive` for distribution-archive checks. See RELEASE_CHECKS.md for scope and limitations. The missing privacy-policy URL remains a blocker. The server repository’s PRE_APP_STORE_SERVER_REVIEW.md records changes on develop and pending Railway, backup, log, deletion, and production-push verification. Add future server changes there before final release review.
