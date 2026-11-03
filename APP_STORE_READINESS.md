@@ -68,3 +68,8 @@ Logout now stops local activities, queues their server cleanup, persists a pause
 ## Compact first-launch choice
 
 Replaced the long background-update consent sheet with a native SwiftUI alert offering Allow and Don’t Allow. It controls app-owned registration and does not impersonate a Location/notification/system permission grant. The persisted first-launch policy remains: no automatic repeats after a choice, app relaunch, login, or logout. Don’t Allow also persists the opt-out in secure state. The detailed data-flow explanation moved to Settings → Privacy & Help. No notification/location permission is requested for this feature.
+
+
+## Privacy publication — November 3, 2026
+
+Published privacy policy and connected its HTTPS URL in AppInfo.plist. Policy identifies Zimri Quinonez, distinguishes retained-registration logout from current-device deletion, and discloses built-in Railway logs, manual support-email retention, and no configured production backup schedule. Production backup safeguard was intentionally skipped by the owner. Owner reports production flows working; screenshots show successful deletion, enrollment, matchup requests, and activity registration. Read-only production output confirms Apple accepted a recent live update. An intermittent stale Live Activity warning was reproduced, then could no longer be reproduced in repeated owner tests; it remains unconfirmed fixed and requires TestFlight/game-time verification. Final privacy questionnaire, distribution signing, screenshots, and submission checks remain pending.
