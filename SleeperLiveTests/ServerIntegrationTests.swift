@@ -17,6 +17,20 @@ final class ServerIntegrationTests: XCTestCase {
         XCTAssertTrue(state.records.isEmpty)
     }
 
+    func testRefreshDuringRegistrationStaysQueuedAndNetworkFailureRetries() {
+        var record = makeRecord()
+        record.token = "token"
+        record.refreshGeneration = UUID()
+        let inFlight = record
+        record.refreshGeneration = UUID()
+        record.acknowledge(sentToken: inFlight.token, refreshGeneration: inFlight.refreshGeneration)
+        XCTAssertTrue(record.needsSync)
+        record.retry(failed: record, retryAfter: nil, now: 100)
+        XCTAssertGreaterThan(record.nextAttempt, 100)
+        record.acknowledge(sentToken: record.token, refreshGeneration: record.refreshGeneration)
+        XCTAssertFalse(record.needsSync)
+    }
+
     func testOnlyBareHTTPSAddressesAccepted() throws {
         XCTAssertEqual(try ServerClient.baseURL(" https://example.com/ ").host, "example.com")
         for value in ["http://example.com", "https://user:secret@example.com", "https://example.com/api", "https://example.com?token=secret", "https://example.com#fragment", ""] {

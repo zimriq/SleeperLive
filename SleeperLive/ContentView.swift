@@ -815,6 +815,8 @@ struct ContentView: View {
                 if serverSnapshot == nil || result.state.updatedAt >= serverSnapshot!.state.updatedAt {
                     applySnapshot(result)
                 }
+                await liveActivity.refresh(leagueId: selection.leagueId, rosterId: selection.rosterId,
+                                           week: selection.week, state: result.state)
                 lookupMessage = "Matchup loaded."
                 saveDashboard()
                 if navigate {

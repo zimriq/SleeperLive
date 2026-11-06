@@ -360,10 +360,23 @@ final class LiveActivityManager: ObservableObject {
 
     func refresh(leagueId: String, rosterId: Int, week: Int, state: MatchupActivityAttributes.ContentState) async {
         guard !isBusy, matches(leagueId: leagueId, rosterId: rosterId, week: week),
-              let current = activity, current.attributes.previewOnly == true,
+              let current = activity,
               state.updatedAt >= current.content.state.updatedAt,
               state.yourScore.isFinite, state.opponentScore.isFinite else { return }
-        // Never race app-driven updates against remote APNs timestamps.
+        if current.attributes.previewOnly != true {
+            do {
+                try change { saved in
+                    if let i = saved.records.firstIndex(where: { $0.id == current.id && !$0.ending }) {
+                        saved.records[i].refreshGeneration = UUID()
+                        saved.records[i].failures = 0
+                        saved.records[i].nextAttempt = 0
+                    }
+                }
+                sync()
+            } catch { message = error.localizedDescription }
+            return
+        }
+        // Preview updates are local; real activities retain server timestamp ordering.
         await current.update(ActivityContent(state: state, staleDate: state.staleDate))
     }
 
@@ -440,7 +453,7 @@ final class LiveActivityManager: ObservableObject {
                             guard let i = state.records.firstIndex(where: { $0.id == record.id }) else { return }
                             if record.ending { state.records.remove(at: i) }
                             else {
-                                state.records[i].acknowledge(sentToken: record.token)
+                                state.records[i].acknowledge(sentToken: record.token, refreshGeneration: record.refreshGeneration)
                             }
                         }
                         self.message = record.ending ? (self.registrationFailure ?? "Server cleanup completed.")

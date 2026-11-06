@@ -107,12 +107,13 @@ struct ServerClient {
     func register(_ record: RemoteActivityRecord) async throws {
         struct Registration: Encodable {
             let leagueId: String; let week: Int; let rosterId: Int
-            let pushToken: String; let apnsEnvironment: String; let startedAt: Int
+            let pushToken: String; let apnsEnvironment: String; let startedAt: Int; let refresh: Bool
         }
         guard let token = record.token else { return }
         let body = Registration(leagueId: record.selection.leagueId, week: record.selection.week,
                                 rosterId: record.selection.rosterId, pushToken: token,
-                                apnsEnvironment: record.environment, startedAt: record.startedAt)
+                                apnsEnvironment: record.environment, startedAt: record.startedAt,
+                                refresh: record.refreshGeneration != record.acknowledgedRefreshGeneration)
         _ = try await request("v1/activities/\(record.id)", method: "PUT", body: JSONEncoder().encode(body))
     }
 

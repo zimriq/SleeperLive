@@ -7,15 +7,18 @@ struct RemoteActivityRecord: Codable, Identifiable {
     let startedAt: Int
     let environment: String
     var token: String?
+    var refreshGeneration: UUID?
+    var acknowledgedRefreshGeneration: UUID?
     var registeredToken: String?
     var ending = false
     var failures = 0
     var nextAttempt: TimeInterval = 0
 
-    var needsSync: Bool { ending || (token != nil && token != registeredToken) }
+    var needsSync: Bool { ending || (token != nil && (token != registeredToken || refreshGeneration != acknowledgedRefreshGeneration)) }
     var expiresAt: TimeInterval { TimeInterval(startedAt) + 28_800 }
 
-    mutating func acknowledge(sentToken: String?) {
+    mutating func acknowledge(sentToken: String?, refreshGeneration: UUID? = nil) {
+        acknowledgedRefreshGeneration = refreshGeneration
         // Keep any newer token or queued stop; only acknowledge what was sent.
         registeredToken = sentToken
         failures = 0
