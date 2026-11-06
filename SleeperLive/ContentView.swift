@@ -601,7 +601,7 @@ struct ContentView: View {
                 scoreUpdatedAt = nil
                 dashboardData = Data()
             }
-            await findMatchup(league: league, navigate: false)
+            await findMatchup(league: league, navigate: false, requestRecovery: true)
         } catch {
             lookupMessage = "Couldn't refresh. Showing saved scores; try again when you're online."
         }
@@ -794,7 +794,7 @@ struct ContentView: View {
     }
     
     // Fetches the selected week's matchup and finds the opponent.
-    func findMatchup(league: SleeperLeague, navigate: Bool = true) async {
+    func findMatchup(league: SleeperLeague, navigate: Bool = true, requestRecovery: Bool = false) async {
         guard let myRosterID = myRosterID else {
             lookupMessage = "roster id is missing"
             return
@@ -815,8 +815,10 @@ struct ContentView: View {
                 if serverSnapshot == nil || result.state.updatedAt >= serverSnapshot!.state.updatedAt {
                     applySnapshot(result)
                 }
-                await liveActivity.refresh(leagueId: selection.leagueId, rosterId: selection.rosterId,
-                                           week: selection.week, state: result.state)
+                if requestRecovery {
+                    await liveActivity.refresh(leagueId: selection.leagueId, rosterId: selection.rosterId,
+                                               week: selection.week, state: result.state)
+                }
                 lookupMessage = "Matchup loaded."
                 saveDashboard()
                 if navigate {
