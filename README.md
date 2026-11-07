@@ -18,4 +18,4 @@ The existing tests cover app/server data handling, response validation, retry ti
 
 View execution logs and pass/fail results in [GitHub Actions](https://github.com/zimriq/SleeperLive/actions). The workflow definition is intended to live at `.github/workflows/ios-tests.yml`; consult the Actions tab to confirm it has been committed and to verify the latest run.
 
-These checks complement physical-device testing. They do not verify actual Apple push delivery, lock-screen update timing, production server availability, or the absence of all bugs.
+These checks complement physical-device testing. 
