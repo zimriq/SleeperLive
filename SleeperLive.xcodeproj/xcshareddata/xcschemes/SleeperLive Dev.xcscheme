@@ -1,35 +1,89 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<Scheme LastUpgradeVersion="2700" version="1.3">
-   <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "2710"
+   version = "1.3">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
       <BuildActionEntries>
-         <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
-            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="2E946934307835E4007EA65C" BuildableName="SleeperLive.app" BlueprintName="SleeperLive" ReferencedContainer="container:SleeperLive.xcodeproj">
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "2E946934307835E4007EA65C"
+               BuildableName = "SleeperLive.app"
+               BlueprintName = "SleeperLive"
+               ReferencedContainer = "container:SleeperLive.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
-   <TestAction buildConfiguration="Develop" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES">
+   <TestAction
+      buildConfiguration = "Develop"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
-         <TestableReference skipped="NO" parallelizable="NO">
-            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="51EE9E110000000000000001" BuildableName="SleeperLiveTests.xctest" BlueprintName="SleeperLiveTests" ReferencedContainer="container:SleeperLive.xcodeproj">
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "51EE9E110000000000000001"
+               BuildableName = "SleeperLiveTests.xctest"
+               BlueprintName = "SleeperLiveTests"
+               ReferencedContainer = "container:SleeperLive.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
    </TestAction>
-   <LaunchAction buildConfiguration="Develop" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.DebuggerFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES">
-      <BuildableProductRunnable runnableDebuggingMode="0">
-         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="2E946934307835E4007EA65C" BuildableName="SleeperLive.app" BlueprintName="SleeperLive" ReferencedContainer="container:SleeperLive.xcodeproj">
+   <LaunchAction
+      buildConfiguration = "Develop"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "2E946934307835E4007EA65C"
+            BuildableName = "SleeperLive.app"
+            BlueprintName = "SleeperLive"
+            ReferencedContainer = "container:SleeperLive.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
-   <ProfileAction buildConfiguration="Develop" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES">
-      <BuildableProductRunnable runnableDebuggingMode="0">
-         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="2E946934307835E4007EA65C" BuildableName="SleeperLive.app" BlueprintName="SleeperLive" ReferencedContainer="container:SleeperLive.xcodeproj">
+   <ProfileAction
+      buildConfiguration = "Develop"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "2E946934307835E4007EA65C"
+            BuildableName = "SleeperLive.app"
+            BlueprintName = "SleeperLive"
+            ReferencedContainer = "container:SleeperLive.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
-   <AnalyzeAction buildConfiguration="Develop">
+   <AnalyzeAction
+      buildConfiguration = "Develop">
    </AnalyzeAction>
-   <ArchiveAction buildConfiguration="Develop" revealArchiveInOrganizer="YES">
+   <ArchiveAction
+      buildConfiguration = "Develop"
+      revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>
